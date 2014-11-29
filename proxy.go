@@ -59,6 +59,7 @@ func (sp *Proxy) Load() {
 		pr := &PingResult{}
 		err := Ping(pr, fmt.Sprintf("%s", ip))
 		if err != nil {
+			SpiderLoger.E("Ping error, ", err.Error())
 			continue
 		}
 		if pr.LostRate == 0 && pr.Average < 200 {
