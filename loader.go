@@ -115,6 +115,7 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 		host, port := SpiderProxy.GetProxyServer()
 		if host != nil && port != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
+			// proxyUrl, _ := url.Parse("http://111.13.2.136:80")
 			transport.Proxy = http.ProxyURL(proxyUrl)
 			SpiderLoger.D("load with proxy", proxyUrl.String())
 		}

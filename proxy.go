@@ -12,7 +12,7 @@ type Proxy struct {
 }
 
 var (
-	proxyUrl string = "http://proxy.com.ru/"
+	proxyUrl string = "http://proxy.com.ru/niming/"
 )
 
 func NewProxy() *Proxy {
@@ -21,9 +21,9 @@ func NewProxy() *Proxy {
 
 func (sp *Proxy) Daemon() {
 	go func() {
-		sp.Load()
 		for {
-			time.Sleep(time.Second * 60 * 10)
+			sp.Load()
+			time.Sleep(time.Second * 10 * 60)
 		}
 	}()
 }
@@ -39,6 +39,7 @@ func (sp *Proxy) GetProxyServer() (host, port []byte) {
 
 func (sp *Proxy) Load() {
 	SpiderLoger.I("load proxy data from", proxyUrl)
+	sp.Servers = [][][]byte{}
 	loader := NewLoader(proxyUrl, "GET").WithProxy(false)
 	content, err := loader.Send(nil)
 	if err != nil {
