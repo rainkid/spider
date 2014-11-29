@@ -37,7 +37,7 @@ func (ti *Taobao) Item() {
 	if ti.GetItemImg().CheckError() {
 		return
 	}
-	// fmt.Println(ti.item.data)
+	fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 }
 
@@ -50,6 +50,28 @@ func (ti *Taobao) GetItemTitle() *Taobao {
 		return ti
 	}
 	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
+
+	favcount := hp.Partten(`(?U)"favcount":"(\d+)"`).FindStringSubmatch()
+	if favcount == nil {
+		ti.item.err = errors.New(`get favcount error`)
+		return ti
+	}
+	ti.item.data["favcount"] = fmt.Sprintf("%s", favcount[1])
+
+	totalSoldQuantity := hp.Partten(`(?U)"totalSoldQuantity":"(\d+)"`).FindStringSubmatch()
+	if totalSoldQuantity == nil {
+		ti.item.err = errors.New(`get totalSoldQuantity error`)
+		return ti
+	}
+	ti.item.data["totalSoldQuantity"] = fmt.Sprintf("%s", totalSoldQuantity[1])
+
+	goodRatePercentage := hp.Partten(`(?U)"goodRatePercentage":"(.*)"`).FindStringSubmatch()
+	if goodRatePercentage == nil {
+		ti.item.err = errors.New(`get goodRatePercentage error`)
+		return ti
+	}
+	ti.item.data["goodRatePercentage"] = fmt.Sprintf("%s", goodRatePercentage[1])
+
 	return ti
 }
 
