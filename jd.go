@@ -111,9 +111,7 @@ func (ti *Jd) GetShopTitle() *Jd {
 	hp = hp.LoadData(ti.content).Replace()
 	title := hp.Partten(`(?U)class="name">(.*)</div>`).FindStringSubmatch()
 
-	fmt.Println(string(title[1]))
-
-	ti.item.data["title"] = fmt.Sprintf("%s", title)
+	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
 	return ti
 }
 
