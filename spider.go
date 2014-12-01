@@ -74,6 +74,10 @@ func (spider *Spider) Do(item *Item) {
 		ti := &Taobao{item: item}
 		go ti.Item()
 		break
+	case "JdItem":
+		ti := &Jd{item: item}
+		go ti.Item()
+		break
 	case "MmbItem":
 		ti := &MMB{item: item}
 		go ti.Item()
