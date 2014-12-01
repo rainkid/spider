@@ -39,7 +39,7 @@ func (sp *Proxy) GetProxyServer() (host, port []byte) {
 
 func (sp *Proxy) Load() {
 	SpiderLoger.I("load proxy data from", proxyUrl)
-	sp.Servers = [][][]byte{}
+
 	loader := NewLoader(proxyUrl, "GET").WithProxy(false)
 	content, err := loader.Send(nil)
 	if err != nil {
@@ -47,7 +47,7 @@ func (sp *Proxy) Load() {
 		SendMail("load proxy data error.", err.Error())
 		return
 	}
-
+	sp.Servers = [][][]byte{}
 	hp := NewHtmlParse().LoadData(content).Replace().Convert()
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
