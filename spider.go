@@ -86,6 +86,10 @@ func (spider *Spider) Do(item *Item) {
 		ti := &Tmall{item: item}
 		go ti.Shop()
 		break
+	case "JdShop":
+		ti := &Jd{item: item}
+		go ti.Shop()
+		break
 	case "TaobaoShop":
 		ti := &Taobao{item: item}
 		go ti.Shop()
