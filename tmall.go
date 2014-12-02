@@ -74,7 +74,7 @@ func (ti *Tmall) GetItemPrice() *Tmall {
 
 	if jsonData != nil {
 		hp.LoadData(jsonData[0])
-		prices := hp.FindJsonStr("price")
+		prices := hp.FindJsonStr("amount")
 
 		lp := len(prices)
 		if prices != nil {
