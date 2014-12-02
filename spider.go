@@ -130,6 +130,7 @@ func (spider *Spider) Finish(item *Item) {
 	v.Add("data", fmt.Sprintf("%s", output))
 
 	url, _ := url.QueryUnescape(item.callback)
+	SpiderLoger.E("callback with error", url)
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
 	if err != nil {
@@ -149,6 +150,7 @@ func (spider *Spider) Add(tag, id, callback string) {
 		data:     make(map[string]string),
 		err:      nil,
 	}
+	fmt.Println(item);
 	spider.qstart <- item
 }
 

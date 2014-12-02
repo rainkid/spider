@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"io/ioutil"
 )
 
 type Jd struct {
@@ -43,15 +44,15 @@ func (ti *Jd) Item() {
 }
 
 func (ti *Jd) GetItemTitle() *Jd {
-	hp := NewHtmlParse().LoadData(ti.content)
+	hp := NewHtmlParse().LoadData(ti.content).CleanScript().Replace()
 
-	title := hp.Partten(`(?U)<title>(.*)-\s`).FindStringSubmatch()
+	title := hp.Partten(`(?Usm)<title>(.*)-\s`).FindStringSubmatch()
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
 		return ti
 	}
-
+	ti.item.data["title"] = strings.TrimSpace(string(title[1]))
 	return ti
 }
 
@@ -110,14 +111,31 @@ func (ti *Jd) GetShopTitle() *Jd {
 	hp := NewHtmlParse()
 	hp = hp.LoadData(ti.content).Replace()
 	title := hp.Partten(`(?U)class="name">(.*)</div>`).FindStringSubmatch()
-
 	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
+	logo := hp.Partten(`(?U)class="store-logo">.*<img\ssrc="(.*)"`).FindStringSubmatch()
+	ti.item.data["img"] = fmt.Sprintf("%s", logo[1])
 	return ti
 }
 
 func (ti *Jd) GetShopImgs() *Jd {
 
-	hp := NewHtmlParse().LoadData(ti.content)
+
+	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.id)
+
+	loader := NewLoader(url, "Get")
+	content, err := loader.Send(nil)
+
+	if err != nil && ti.item.tryTimes < TryTime {
+		ti.item.err = err
+		SpiderServer.qstart <- ti.item
+		ti.item.err = errors.New(`shop not found.`)
+		return ti
+	}
+
+	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
+	ti.content = hp.content
+
+	ioutil.WriteFile("./xxx.html", hp.content, 0666)  //写入文件(字节数组)
 	ret := hp.Partten(`(?U)class="p-img">\s<img\ssrc="(.*)"`).FindAllSubmatch()
 
 	l := len(ret)
@@ -132,8 +150,6 @@ func (ti *Jd) GetShopImgs() *Jd {
 	for i := 1; i < l; i++ {
 		imglist = append(imglist, fmt.Sprintf("%s", ret[i][1]))
 	}
-	logo := hp.Partten(`(?U)class="store-logo">.*<img\ssrc="(.*)"`).FindStringSubmatch()
-	ti.item.data["img"] = fmt.Sprintf("%s", logo[1])
 	ti.item.data["imgs"] = strings.Join(imglist, ",")
 	return ti
 }
