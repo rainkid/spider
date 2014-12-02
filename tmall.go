@@ -46,13 +46,13 @@ func (ti *Tmall) Item() {
 
 func (ti *Tmall) GetItemTitle() *Tmall {
 	hp := NewHtmlParse().LoadData(ti.content)
-	title := hp.FindJsonStr("title")
+	title := hp.Partten(`(?U)"title":"(.*)"`).FindStringSubmatch()
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
 		return ti
 	}
-	ti.item.data["title"] = fmt.Sprintf("%s", title[0][1])
+	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
 	return ti
 }
 
@@ -70,11 +70,11 @@ func (ti *Tmall) GetItemPrice() *Tmall {
 		price, _ = strconv.ParseFloat(fmt.Sprintf("%s", defaultPriceStr), 64)
 	}
 
-	jsonData := hp.Partten(`{"isSuccess":true.*"serviceDO"`).FindStringSubmatch()
+	jsonData := hp.Partten(`"defaultPriceInfoDO"(.*)"detailPageTipsDO"`).FindStringSubmatch()
 
 	if jsonData != nil {
 		hp.LoadData(jsonData[0])
-		prices := hp.FindJsonStr("amount")
+		prices := hp.FindJsonStr("price")
 
 		lp := len(prices)
 		if prices != nil {

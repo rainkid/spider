@@ -150,7 +150,6 @@ func (spider *Spider) Add(tag, id, callback string) {
 		data:     make(map[string]string),
 		err:      nil,
 	}
-	fmt.Println(item);
 	spider.qstart <- item
 }
 

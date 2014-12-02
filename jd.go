@@ -38,7 +38,7 @@ func (ti *Jd) Item() {
 	if ti.GetItemImg().CheckError() {
 		return
 	}
-	fmt.Println(ti.item.data)
+	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 }
 
@@ -95,7 +95,6 @@ func (ti *Jd) Shop() {
 	hp = hp.LoadData(content).Replace().CleanScript()
 	ti.content = hp.content
 
-
 	if ti.GetShopTitle().CheckError() {
 		return
 	}
@@ -117,7 +116,6 @@ func (ti *Jd) GetShopTitle() *Jd {
 }
 
 func (ti *Jd) GetShopImgs() *Jd {
-
 
 	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.id)
 
