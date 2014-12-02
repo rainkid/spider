@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"io/ioutil"
 )
 
 type Jd struct {
@@ -135,7 +134,6 @@ func (ti *Jd) GetShopImgs() *Jd {
 	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
 	ti.content = hp.content
 
-	ioutil.WriteFile("./xxx.html", hp.content, 0666)  //写入文件(字节数组)
 	ret := hp.Partten(`(?U)class="p-img">\s<img\ssrc="(.*)"`).FindAllSubmatch()
 
 	l := len(ret)
