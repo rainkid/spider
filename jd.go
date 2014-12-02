@@ -109,8 +109,16 @@ func (ti *Jd) GetShopTitle() *Jd {
 	hp := NewHtmlParse()
 	hp = hp.LoadData(ti.content).Replace()
 	title := hp.Partten(`(?U)class="name">(.*)</div>`).FindStringSubmatch()
+	if title == nil {
+		ti.item.err = errors.New(`get jd title error.`)
+		return ti
+	}
 	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
 	logo := hp.Partten(`(?U)class="store-logo">.*<img\ssrc="(.*)"`).FindStringSubmatch()
+	if logo == nil {
+		ti.item.err = errors.New(`get jd shop logo error.`)
+		return ti
+	}
 	ti.item.data["img"] = fmt.Sprintf("%s", logo[1])
 	return ti
 }
@@ -134,9 +142,14 @@ func (ti *Jd) GetShopImgs() *Jd {
 
 	ret := hp.Partten(`(?U)class="p-img">\s<img\ssrc="(.*)"`).FindAllSubmatch()
 
+	if ret == nil {
+		ti.item.err = errors.New(`get jd shop images error.`)
+		return ti
+	}
+
 	l := len(ret)
 	if l == 0 {
-		ti.item.err = errors.New(`shop not found.`)
+		ti.item.err = errors.New(`get jd shop images error.`)
 		return ti
 	}
 	var imglist []string
