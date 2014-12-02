@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"time"
 )
@@ -27,10 +28,22 @@ type PingResult struct {
 	Average  float32
 }
 
-func Ping(ret *PingResult, dst string) error {
-	var icmp ICMP
+func Telnet(dst string) error {
+	conn, err := net.Dial("tcp", dst)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return nil
+}
 
-	conn, err := net.Dial("ip4:icmp", dst)
+func Ping(ret *PingResult, host, port string) error {
+	var icmp ICMP
+	terr := Telnet(fmt.Sprintf("%s:%s", host, port))
+	if terr != nil {
+		return terr
+	}
+	conn, err := net.Dial("ip4:icmp", host)
 	if err != nil {
 		return err
 	}
@@ -89,7 +102,7 @@ func Ping(ret *PingResult, dst string) error {
 	}
 	recved, losted := statistic.Len(), sended_packets-statistic.Len()
 
-	ret.Dst = dst
+	ret.Dst = host
 	ret.Sended = sended_packets
 	ret.Recved = recved
 	ret.Losted = losted

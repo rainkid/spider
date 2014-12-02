@@ -58,12 +58,12 @@ func (sp *Proxy) Load() {
 	for i := 0; i < l; i++ {
 		ip, port := trs[i][1], trs[i][2]
 		pr := &PingResult{}
-		err := Ping(pr, fmt.Sprintf("%s", ip))
+		err = Ping(pr, string(ip), string(port))
 		if err != nil {
 			SpiderLoger.E("Ping error, ", err.Error())
 			continue
 		}
-		if pr.LostRate == 0 && pr.Average < 200 {
+		if pr.LostRate == 0 && pr.Average < 500 {
 			sp.Servers = append(sp.Servers, [][]byte{ip, port})
 		}
 	}
