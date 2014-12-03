@@ -26,7 +26,7 @@ func StartProxy() *Proxy {
 		SpiderProxy = NewProxy()
 		SpiderProxy.Daemon()
 	}
-	return Proxy
+	return SpiderProxy
 }
 
 func (sp *Proxy) Daemon() {
