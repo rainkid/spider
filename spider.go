@@ -9,7 +9,6 @@ import (
 
 var (
 	SpiderServer *Spider
-	SpiderProxy  *Proxy
 	spiderErrors *SpiderErrors = &SpiderErrors{}
 	SpiderLoger  *MyLoger      = NewMyLoger()
 	TryTime                    = 5

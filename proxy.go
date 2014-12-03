@@ -12,11 +12,21 @@ type Proxy struct {
 }
 
 var (
-	proxyUrl string = "http://proxy.com.ru/niming/"
+	proxyUrl    string = "http://proxy.com.ru/niming/"
+	SpiderProxy *Proxy
 )
 
 func NewProxy() *Proxy {
 	return &Proxy{}
+}
+
+func StartProxy() *Proxy {
+	if SpiderProxy == nil {
+		SpiderLoger.I("SpiderProxy Daemon.")
+		SpiderProxy = NewProxy()
+		SpiderProxy.Daemon()
+	}
+	return SpiderProxy
 }
 
 func (sp *Proxy) Daemon() {
