@@ -49,11 +49,6 @@ func Start() *Spider {
 		SpiderServer = NewSpider()
 		SpiderServer.Daemon()
 	}
-	if SpiderProxy == nil {
-		SpiderLoger.I("SpiderProxy Daemon.")
-		SpiderProxy = NewProxy()
-		SpiderProxy.Daemon()
-	}
 	return SpiderServer
 }
 
