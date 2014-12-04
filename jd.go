@@ -59,7 +59,10 @@ func (ti *Jd) GetItemTitle() *Jd {
 func (ti *Jd) GetItemPrice() *Jd {
 	hp := NewHtmlParse().LoadData(ti.content)
 	price := hp.Partten(`(?U)id="price">&yen;(.*)\s</span>`).FindStringSubmatch()
-
+	if price == nil {
+		ti.item.err = errors.New(`get price error`)
+		return ti
+	}
 	iprice, _ := strconv.ParseFloat(fmt.Sprintf("%s", strings.TrimSpace(string(price[1]))), 64)
 	ti.item.data["price"] = fmt.Sprintf("%.2f", iprice)
 	return ti

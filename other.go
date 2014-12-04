@@ -58,6 +58,7 @@ func (ti *Other) Get() {
 	if ti.GetOtherTitle().CheckError() {
 		return
 	}
+	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 }
 
