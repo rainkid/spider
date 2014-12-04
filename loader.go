@@ -22,6 +22,7 @@ type Loader struct {
 	url       string
 	method    string
 	useProxy  bool
+	proxyId   int
 	mheader   map[string]string
 }
 
@@ -112,11 +113,11 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 	}
 
 	if l.useProxy {
-		host, port := SpiderProxy.GetProxyServer()
-		if host != nil && port != nil {
-			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
-			// proxyUrl, _ := url.Parse("http://111.13.2.136:80")
+		proxyServerInfo := SpiderProxy.GetProxyServer()
+		if proxyServerInfo != nil {
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			transport.Proxy = http.ProxyURL(proxyUrl)
+			l.proxyId = proxyServerInfo.id
 			SpiderLoger.D("load with proxy", proxyUrl.String())
 		}
 	}

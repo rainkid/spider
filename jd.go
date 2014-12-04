@@ -22,6 +22,7 @@ func (ti *Jd) Item() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
+		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -81,12 +82,12 @@ func (ti *Jd) GetItemImg() *Jd {
 func (ti *Jd) Shop() {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", ti.item.id)
-
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
+		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -132,6 +133,7 @@ func (ti *Jd) GetShopImgs() *Jd {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
+		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		ti.item.err = errors.New(`shop not found.`)
 		return ti
