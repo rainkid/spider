@@ -22,7 +22,6 @@ func (ti *Other) Get() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-
 		SpiderServer.qstart <- ti.item
 		return
 	}
