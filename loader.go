@@ -22,7 +22,6 @@ type Loader struct {
 	url       string
 	method    string
 	useProxy  bool
-	proxyId   int
 	mheader   map[string]string
 }
 
@@ -117,7 +116,6 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			transport.Proxy = http.ProxyURL(proxyUrl)
-			l.proxyId = proxyServerInfo.id
 			SpiderLoger.D("load with proxy", proxyUrl.String())
 		}
 	}

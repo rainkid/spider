@@ -22,7 +22,7 @@ func (ti *Tmall) Item() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
+
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -120,7 +120,7 @@ func (ti *Tmall) Shop() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
+
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -144,7 +144,7 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
+
 		SpiderServer.qstart <- ti.item
 		return ti
 	}
