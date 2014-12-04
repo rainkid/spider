@@ -11,7 +11,7 @@ var (
 	SpiderServer *Spider
 	spiderErrors *SpiderErrors = &SpiderErrors{}
 	SpiderLoger  *MyLoger      = NewMyLoger()
-	TryTime                    = 5
+	TryTime                    = 10
 )
 
 type SpiderErrors struct {
