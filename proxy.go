@@ -87,7 +87,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 			SpiderLoger.E("ping error", err.Error())
 			continue
 		}
-		if pr.LostRate == 0 && pr.Average < 300 {
+		if pr.LostRate == 0 && pr.Average < 500 {
 			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
 			proxyNum++
 		}
