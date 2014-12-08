@@ -14,7 +14,7 @@ type Tmall struct {
 }
 
 func (ti *Tmall) Item() {
-	url := fmt.Sprintf("http://detail.m.tmall.com/item.htm?id=%s", ti.item.id)
+	url := fmt.Sprintf("http://detail.m.tmall.com/item.htm?id=%s", ti.item.params["id"])
 
 	//get content
 	loader := NewLoader(url, "Get")
@@ -135,7 +135,7 @@ func (ti *Tmall) Shop() {
 }
 
 func (ti *Tmall) GetShopTitle() *Tmall {
-	url := fmt.Sprintf("http://shop.m.tmall.com/?shop_id=%s", ti.item.id)
+	url := fmt.Sprintf("http://shop.m.tmall.com/?shop_id=%s", ti.item.params["id"])
 	//get content
 	loader := NewLoader(url, "Get")
 	shop, err := loader.Send(nil)
@@ -181,7 +181,7 @@ func (ti *Tmall) GetShopImgs() *Tmall {
 	var imgs [][][]byte
 	for i := 0; i < l; i++ {
 		val := ret[i][1]
-		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.id))
+		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.params["id"]))
 		if bytes.Index(val, sep) > 0 {
 			hp1 := NewHtmlParse().LoadData(val)
 			imgs = hp1.Partten(`(?U)src="(.*)"`).FindAllSubmatch()

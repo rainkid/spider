@@ -138,7 +138,7 @@ func (ti *Taobao) Shop() {
 }
 
 func (ti *Taobao) GetShopTitle() *Taobao {
-	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.id)
+	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.params["id"])
 	//get content
 	loader := NewLoader(url, "Get")
 	shop, err := loader.Send(nil)
@@ -211,6 +211,10 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 	ti.item.data["img"] = fmt.Sprintf("%s", imgs[0][1])
 	ti.item.data["imgs"] = strings.Join(imglist, ",")
 	return ti
+}
+
+func (ti *Taobao) GetUnipid() {
+
 }
 
 func (ti *Taobao) CheckError() bool {

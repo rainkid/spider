@@ -26,8 +26,7 @@ type Spider struct {
 }
 
 type Item struct {
-	id       string
-	callback string
+	params   map[string]string
 	data     map[string]string
 	tag      string
 	tryTimes int
@@ -104,6 +103,8 @@ func (spider *Spider) Error(item *Item) {
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
+			spiderErrors.errorTotal = 0
+			spiderErrors.errorStr = ""
 		}
 		spiderErrors.errorStr += sbody + "\n"
 		spiderErrors.errorTotal++
@@ -123,8 +124,7 @@ func (spider *Spider) Finish(item *Item) {
 	v.Add("id", item.id)
 	v.Add("data", fmt.Sprintf("%s", output))
 
-	url, _ := url.QueryUnescape(item.callback)
-	SpiderLoger.E("callback with error", url)
+	url, _ := url.QueryUnescape(item.params["callback"])
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
 	if err != nil {
@@ -135,12 +135,11 @@ func (spider *Spider) Finish(item *Item) {
 	return
 }
 
-func (spider *Spider) Add(tag, id, callback string) {
+func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
 		tag:      tag,
-		id:       id,
+		params:   params,
 		tryTimes: 0,
-		callback: callback,
 		data:     make(map[string]string),
 		err:      nil,
 	}

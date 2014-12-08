@@ -14,7 +14,7 @@ type Jd struct {
 }
 
 func (ti *Jd) Item() {
-	url := fmt.Sprintf("http://m.jd.com/product/%s.html", ti.item.id)
+	url := fmt.Sprintf("http://m.jd.com/product/%s.html", ti.item.params["id"])
 
 	//get content
 	loader := NewLoader(url, "Get")
@@ -83,7 +83,7 @@ func (ti *Jd) GetItemImg() *Jd {
 
 func (ti *Jd) Shop() {
 
-	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", ti.item.id)
+	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", ti.item.params["id"])
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
 
@@ -127,7 +127,7 @@ func (ti *Jd) GetShopTitle() *Jd {
 
 func (ti *Jd) GetShopImgs() *Jd {
 
-	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.id)
+	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.params["id"])
 
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
