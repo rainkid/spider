@@ -41,7 +41,6 @@ func (sp *Proxy) Daemon() {
 	go func() {
 		for {
 			proxyNum = 0
-			sp.Servers = make(map[int]*ProxyServerInfo)
 			go sp.Load(proxyUrl_1)
 			go sp.Load(proxyUrl_2)
 			time.Sleep(time.Second * 10 * 60)
@@ -78,6 +77,10 @@ func (sp *Proxy) Load(proxyUrl string) {
 	if l == 0 {
 		SendMail("load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
 		return
+	}
+	if proxyNum == 0 && len(sp.Servers) > 0 {
+		SpiderLoger.I("reset proxy servers map")
+		sp.Servers = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
 		ip, port := string(trs[i][1]), string(trs[i][2])
