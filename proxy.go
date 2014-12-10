@@ -18,9 +18,8 @@ type Proxy struct {
 }
 
 var (
-	proxyUrl_1  string = "http://proxy.com.ru/niming/"
+	proxyUrl_1  string = "http://proxy.com.ru/niming/list_1.html"
 	proxyUrl_2  string = "http://proxy.com.ru/niming/list_2.html"
-	proxyUrl_3  string = "http://proxy.com.ru/niming/list_3.html"
 	SpiderProxy *Proxy
 	proxyNum    = 0
 )
@@ -45,7 +44,6 @@ func (sp *Proxy) Daemon() {
 			sp.Servers = make(map[int]*ProxyServerInfo)
 			go sp.Load(proxyUrl_1)
 			go sp.Load(proxyUrl_2)
-			go sp.Load(proxyUrl_3)
 			time.Sleep(time.Second * 10 * 60)
 		}
 	}()
