@@ -18,8 +18,6 @@ type Proxy struct {
 }
 
 var (
-	proxyUrl_1  string = "http://proxy.com.ru/niming/list_1.html"
-	proxyUrl_2  string = "http://proxy.com.ru/niming/list_2.html"
 	SpiderProxy *Proxy
 	proxyNum    = 0
 )
@@ -41,8 +39,9 @@ func (sp *Proxy) Daemon() {
 	go func() {
 		for {
 			proxyNum = 0
-			go sp.Load(proxyUrl_1)
-			go sp.Load(proxyUrl_2)
+			for i := 1; i < 5; i++ {
+				go sp.Load(fmt.Sprintf("http://www.kuaidaili.com/free/intr/%d/", i))
+			}
 			time.Sleep(time.Second * 10 * 60)
 		}
 	}()
@@ -64,22 +63,21 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 func (sp *Proxy) Load(proxyUrl string) {
 	SpiderLoger.I("load proxy data from", proxyUrl)
 
-	loader := NewLoader(proxyUrl, "GET").WithProxy(false)
+	loader := NewLoader(proxyUrl, "GET").WithPcAgent().WithProxy(false)
 	content, err := loader.Send(nil)
 	if err != nil {
 		SpiderLoger.E("load proxy error with", proxyUrl)
 		SendMail("load proxy data error.", err.Error())
 		return
 	}
-	hp := NewHtmlParse().LoadData(content).Replace().Convert()
-	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
+	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
+	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td> <td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
 		SendMail("load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
 		return
 	}
-	if proxyNum == 0 && len(sp.Servers) > 0 {
-		SpiderLoger.I("reset proxy servers map")
+	if proxyNum == 0 {
 		sp.Servers = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
