@@ -102,7 +102,7 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		sbody := fmt.Sprintf("id:%s tag:%s %s", item.params["id"], item.tag, item.err.Error())
 		if spiderErrors.errorTotal == 10 {
-			err := SendMail("spider load data error.", sbody)
+			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
