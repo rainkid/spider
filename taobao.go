@@ -266,9 +266,9 @@ func (ti *Taobao) Sample() {
 	//计算平均价格
 	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
 
-	for i := 1; i < l; i++ {
+	for i := 0; i < l; i++ {
 		var sortScore = 10 - i + 1
-		data := map[string]string{"istmall": "0", "comment_num": "0", "pay_num": "0", "sortScore": "0"}
+		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0"}
 		val := ret[i][1]
 		hp1 := NewHtmlParse().LoadData(val)
 
@@ -320,6 +320,7 @@ func (ti *Taobao) Sample() {
 
 		istmall := bytes.Index(val, []byte(`icon-service-tianmao-large`))
 		if istmall > 0 {
+			data["channel"] = "tmall"
 			sortScore += 1
 		}
 
