@@ -119,7 +119,7 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 			SpiderLoger.D("load with proxy", proxyUrl.String())
 		}
 	}
-	SpiderLoger.D(l.url)
+	SpiderLoger.D("Loader start with", l.url)
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,

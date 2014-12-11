@@ -87,9 +87,9 @@ func (spider *Spider) Do(item *Item) {
 		ti := &Taobao{item: item}
 		go ti.Shop()
 		break
-	case "SampleGoods":
+	case "SameStyle":
 		ti := &Taobao{item: item}
-		go ti.Sample()
+		go ti.SameStyle()
 	case "Other":
 		ti := &Other{item: item}
 		go ti.Get()
@@ -102,7 +102,7 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		sbody := fmt.Sprintf("id:%s tag:%s %s", item.params["id"], item.tag, item.err.Error())
 		if spiderErrors.errorTotal == 10 {
-			err := SendMail("spider load data error.", sbody)
+			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
@@ -131,10 +131,10 @@ func (spider *Spider) Finish(item *Item) {
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
 	if err != nil {
-		SpiderLoger.E("callback with error", err.Error())
+		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
-	SpiderLoger.I("success with", fmt.Sprintf("tag:%s,id:%s,url:%s", item.tag, item.params["id"], url))
+	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:%s,id:%s,url:%s", item.tag, item.params["id"], url))
 	return
 }
 

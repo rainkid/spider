@@ -214,10 +214,9 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 	return ti
 }
 
-func (ti *Taobao) Sample() {
+func (ti *Taobao) SameStyle() {
 	var result []map[string]string
 	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", ti.item.params["pid"], ti.item.params["id"])
-	fmt.Println(url)
 	loader := NewLoader(url, "Get").WithPcAgent().WithProxy(false)
 	content, err := loader.Send(nil)
 
@@ -232,7 +231,7 @@ func (ti *Taobao) Sample() {
 
 	l := len(ret) - 1
 	if l <= 0 {
-		ti.item.err = errors.New(`has no sample goods.`)
+		ti.item.err = errors.New(`Can't found samestyle goods`)
 		SpiderServer.qerror <- ti.item
 		return
 	}
@@ -282,7 +281,7 @@ func (ti *Taobao) Sample() {
 		//评分低于4.8分的
 		p1, _ := strconv.ParseFloat(data["score"], 64)
 		if p1 < 4.8 {
-			SpiderLoger.I(data["id"], "score lesslen 4.8")
+			SpiderLoger.D(data["id"], "score lesslen 4.8")
 			continue
 		}
 
@@ -293,7 +292,7 @@ func (ti *Taobao) Sample() {
 		//销量低于3件
 		p3, _ := strconv.ParseFloat(data["pay_num"], 64)
 		if p3 < 5 {
-			SpiderLoger.I(data["id"], "pay_num len 5")
+			SpiderLoger.D(data["id"], "pay_num len 5")
 			continue
 		}
 
@@ -302,7 +301,7 @@ func (ti *Taobao) Sample() {
 		//价格低于平均价格30%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
 		if p2 < avgPrice*0.3 {
-			SpiderLoger.I(data["id"], "price len aveprice off 30%")
+			SpiderLoger.D(data["id"], "price len aveprice off 30%")
 			continue
 		}
 		//价格按低到高，加分10递减
