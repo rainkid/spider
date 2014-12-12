@@ -109,7 +109,7 @@ func (spider *Spider) Error(item *Item) {
 			spiderErrors.errorTotal = 0
 			spiderErrors.errorStr = ""
 		}
-		spiderErrors.errorStr += sbody + "\n"
+		spiderErrors.errorStr += sbody + "\r\n"
 		spiderErrors.errorTotal++
 		SpiderLoger.E(sbody)
 		item.err = nil

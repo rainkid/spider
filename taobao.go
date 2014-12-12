@@ -281,7 +281,7 @@ func (ti *Taobao) SameStyle() {
 		//评分低于4.8分的
 		p1, _ := strconv.ParseFloat(data["score"], 64)
 		if p1 < 4.8 {
-			SpiderLoger.D(data["id"], "score lesslen 4.8")
+			// SpiderLoger.D(data["id"], "score lesslen 4.8")
 			continue
 		}
 
@@ -292,7 +292,7 @@ func (ti *Taobao) SameStyle() {
 		//销量低于3件
 		p3, _ := strconv.ParseFloat(data["pay_num"], 64)
 		if p3 < 5 {
-			SpiderLoger.D(data["id"], "pay_num len 5")
+			// SpiderLoger.D(data["id"], "pay_num len 5")
 			continue
 		}
 
@@ -301,7 +301,7 @@ func (ti *Taobao) SameStyle() {
 		//价格低于平均价格30%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
 		if p2 < avgPrice*0.3 {
-			SpiderLoger.D(data["id"], "price len aveprice off 30%")
+			// SpiderLoger.D(data["id"], "price len aveprice off 30%")
 			continue
 		}
 		//价格按低到高，加分10递减
@@ -335,7 +335,7 @@ func (ti *Taobao) SameStyle() {
 		result = append(result, data)
 	}
 	if len(result) == 0 {
-		ti.item.err = errors.New("has none sample result ")
+		ti.item.err = errors.New("has none samestyle")
 		SpiderServer.qerror <- ti.item
 		return
 	}

@@ -40,8 +40,8 @@ func (sp *Proxy) Daemon() {
 		for {
 			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
-			for i := 1; i < 5; i++ {
-				go sp.Load(fmt.Sprintf("http://www.kuaidaili.com/free/intr/%d/", i))
+			for i := 1; i < 10; i++ {
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/touming/list_%d.html", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
@@ -71,7 +71,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		return
 	}
 	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
-	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td> <td>(\d+)</td>`).FindAllSubmatch()
+	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
 		SendMail("Load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
