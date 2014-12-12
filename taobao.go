@@ -265,8 +265,8 @@ func (ti *Taobao) SameStyle() {
 	//计算平均价格
 	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
 
-	for i := 1; i < l; i++ {
-		var sortScore = 10 - i + 1
+	for i := 0; i < l; i++ {
+		var sortScore = 10 - i
 		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0"}
 		val := ret[i][1]
 		hp1 := NewHtmlParse().LoadData(val)
@@ -336,7 +336,7 @@ func (ti *Taobao) SameStyle() {
 		result = append(result, data)
 	}
 	if len(result) == 0 {
-		ti.item.err = errors.New("has none samestyle")
+		ti.item.err = errors.New(fmt.Sprintf("%d result load and %d result matched", l, len(result)))
 		SpiderServer.qerror <- ti.item
 		return
 	}
