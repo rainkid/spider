@@ -265,7 +265,7 @@ func (ti *Taobao) SameStyle() {
 	//计算平均价格
 	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
 
-	for i := 0; i < l; i++ {
+	for i := 1; i < l; i++ {
 		var sortScore = 10 - i + 1
 		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0"}
 		val := ret[i][1]
