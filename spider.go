@@ -126,7 +126,7 @@ func (spider *Spider) Finish(item *Item) {
 	v := url.Values{}
 	v.Add("id", item.params["id"])
 	v.Add("data", fmt.Sprintf("%s", output))
-
+	fmt.Println(v);
 	url, _ := url.QueryUnescape(item.params["callback"])
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
