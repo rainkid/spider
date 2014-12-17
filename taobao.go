@@ -264,10 +264,10 @@ func (ti *Taobao) SameStyle() {
 	sort.Float64s(uniquePricesArr)
 	//计算平均价格
 	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
-
-	for i := 0; i < l; i++ {
-		var sortScore = 10 - i
-		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0"}
+	lret := len(ret)
+	for i := 1; i < l; i++ {
+		var sortScore = lret - i
+		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0", "express": "0.00"}
 		val := ret[i][1]
 		hp1 := NewHtmlParse().LoadData(val)
 
@@ -309,18 +309,39 @@ func (ti *Taobao) SameStyle() {
 		sortScore += (10 - pos)
 
 		imgs := hp1.Partten(`(?U)data-ks-lazyload="(.*)"`).FindStringSubmatch()
-		data["img"] = fmt.Sprintf("%s", imgs[1])
+		if imgs != nil {
+			data["img"] = fmt.Sprintf("%s", imgs[1])
+		}
 
 		title := hp1.Partten(`(?U)title="(.*)"`).FindStringSubmatch()
-		data["title"] = fmt.Sprintf("%s", title[1])
+		if title != nil {
+			data["title"] = fmt.Sprintf("%s", title[1])
+		}
 
-		address := hp1.Partten(`(?U)<div class="seller-loc">(.*)</div>`).FindStringSubmatch()
-		data["address"] = fmt.Sprintf("%s", address[1])
+		area := hp1.Partten(`(?U)<div class="seller-loc">(.*)</div>`).FindStringSubmatch()
+		if area != nil {
+			data["area"] = fmt.Sprintf("%s", area[1])
+		}
 
 		istmall := bytes.Index(val, []byte(`icon-service-tianmao-large`))
 		if istmall > 0 {
 			data["channel"] = "tmall"
 			sortScore += 1
+		}
+
+		shop_title := hp1.Partten(`(?U)<a class="feature-dsc-tgr popup-tgr" trace="srpwwnick" target="_blank" href=".*"> (.*) </a>`).FindStringSubmatch()
+		if shop_title != nil {
+			data["shop_title"] = fmt.Sprintf("%s", shop_title[1])
+		}
+
+		shop_level := hp1.Partten(`(?U)<span class="icon-supple-level-(.*)"></span>`).FindAllSubmatch()
+		if shop_level != nil {
+			data["shop_level"] = fmt.Sprintf("%d-%s", len(shop_level), shop_level[0][1])
+		}
+
+		express := hp1.Partten(`(?U)<div class="shipping">运费：(.*)</div>`).FindStringSubmatch()
+		if express != nil {
+			data["express"] = fmt.Sprintf("%s", express[1])
 		}
 
 		comment_num := hp1.Partten(`(?U)(\d+) 条评论`).FindStringSubmatch()
@@ -330,10 +351,11 @@ func (ti *Taobao) SameStyle() {
 
 		data["sortScore"] = fmt.Sprintf("%d", sortScore)
 
-		if i == 10 {
+		result = append(result, data)
+
+		if len(result) == 5 {
 			break
 		}
-		result = append(result, data)
 	}
 	if len(result) == 0 {
 		ti.item.err = errors.New(fmt.Sprintf("%d result load and %d result matched", l, len(result)))
