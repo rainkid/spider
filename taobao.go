@@ -313,7 +313,7 @@ func (ti *Taobao) SameStyle() {
 			data["img"] = fmt.Sprintf("%s", imgs[1])
 		}
 
-		title := hp1.Partten(`(?U)title="(.*)"`).FindStringSubmatch()
+		title := hp1.Partten(`(?U)title="(.*)">`).FindStringSubmatch()
 		if title != nil {
 			data["title"] = fmt.Sprintf("%s", title[1])
 		}
@@ -339,7 +339,7 @@ func (ti *Taobao) SameStyle() {
 			data["shop_level"] = fmt.Sprintf("%d-%s", len(shop_level), shop_level[0][1])
 		}
 
-		express := hp1.Partten(`(?U)<div class="shipping">运费：(.*)</div>`).FindStringSubmatch()
+		express := hp1.Partten(`(?U)<div class="shipping">(.*)</div>`).FindStringSubmatch()
 		if express != nil {
 			data["express"] = fmt.Sprintf("%s", express[1])
 		}
@@ -352,7 +352,6 @@ func (ti *Taobao) SameStyle() {
 		data["sortScore"] = fmt.Sprintf("%d", sortScore)
 
 		result = append(result, data)
-
 		if len(result) == 5 {
 			break
 		}
@@ -365,7 +364,6 @@ func (ti *Taobao) SameStyle() {
 	ti.item.data["unipid"] = ti.item.params["pid"]
 	ti.item.data["nid"] = ti.item.params["id"]
 	ti.item.data["list"] = result
-	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 	return
 }

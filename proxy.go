@@ -40,8 +40,8 @@ func (sp *Proxy) Daemon() {
 		for {
 			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
-			for i := 1; i < 10; i++ {
-				go sp.Load(fmt.Sprintf("http://proxy.com.ru/touming/list_%d.html", i))
+			for i := 1; i < 3; i++ {
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
@@ -67,7 +67,6 @@ func (sp *Proxy) Load(proxyUrl string) {
 	content, err := loader.Send(nil)
 	if err != nil {
 		SpiderLoger.E("Load proxy error with", proxyUrl)
-		SendMail("Load proxy data error.", err.Error())
 		return
 	}
 	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
@@ -85,7 +84,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		pr := &PingResult{}
 		err = Ping(pr, ip, port)
 		if err != nil {
-			SpiderLoger.W("Ping error", err.Error())
+			// SpiderLoger.W("Ping error", err.Error())
 			continue
 		}
 		if pr.LostRate == 0 && pr.Average < 500 {

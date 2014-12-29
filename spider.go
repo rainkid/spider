@@ -57,7 +57,7 @@ func SendMail(title, content string) error {
 
 func (spider *Spider) Do(item *Item) {
 	item.tryTimes++
-	SpiderLoger.I(fmt.Sprintf("item.id:%s,item.tag:%s try with %d times.", item.params["id"], item.tag, item.tryTimes))
+	SpiderLoger.I(fmt.Sprintf("tag: %s, params: %v try with %d times.", item.tag, item.params, item.tryTimes))
 	switch item.tag {
 	case "TmallItem":
 		ti := &Tmall{item: item}
@@ -100,7 +100,7 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		sbody := fmt.Sprintf("id:%s tag:%s %s", item.params["id"], item.tag, item.err.Error())
+		sbody := fmt.Sprintf("tag:%s, params: %v error :%v", item.tag, item.params, item.err.Error())
 		if spiderErrors.errorTotal == 10 {
 			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
@@ -126,7 +126,7 @@ func (spider *Spider) Finish(item *Item) {
 	v := url.Values{}
 	v.Add("id", item.params["id"])
 	v.Add("data", fmt.Sprintf("%s", output))
-	fmt.Println(v);
+	SpiderLoger.D(v)
 	url, _ := url.QueryUnescape(item.params["callback"])
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
@@ -134,7 +134,7 @@ func (spider *Spider) Finish(item *Item) {
 		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
-	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:%s,id:%s,url:%s", item.tag, item.params["id"], url))
+	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:%s params:%v", item.tag, item.params))
 	return
 }
 
