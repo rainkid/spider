@@ -12,7 +12,7 @@ type MMB struct {
 }
 
 func (ti *MMB) Item() {
-	url := fmt.Sprintf("http://mmb.cn/wap/touch/html/product/id_%s.htm", ti.item.id)
+	url := fmt.Sprintf("http://mmb.cn/wap/touch/html/product/id_%s.htm", ti.item.params["id"])
 
 	//get content
 	loader := NewLoader(url, "Get")

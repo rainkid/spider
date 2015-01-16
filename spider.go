@@ -26,9 +26,8 @@ type Spider struct {
 }
 
 type Item struct {
-	id       string
-	callback string
-	data     map[string]string
+	params   map[string]string
+	data     map[string]interface{}
 	tag      string
 	tryTimes int
 	err      error
@@ -58,7 +57,7 @@ func SendMail(title, content string) error {
 
 func (spider *Spider) Do(item *Item) {
 	item.tryTimes++
-	SpiderLoger.I(fmt.Sprintf("item.id:%s,item.tag:%s try with %d times.", item.id, item.tag, item.tryTimes))
+	SpiderLoger.I(fmt.Sprintf("tag: %s, params: %v try with %d times.", item.tag, item.params, item.tryTimes))
 	switch item.tag {
 	case "TmallItem":
 		ti := &Tmall{item: item}
@@ -88,6 +87,9 @@ func (spider *Spider) Do(item *Item) {
 		ti := &Taobao{item: item}
 		go ti.Shop()
 		break
+	case "SameStyle":
+		ti := &Taobao{item: item}
+		go ti.SameStyle()
 	case "Other":
 		ti := &Other{item: item}
 		go ti.Get()
@@ -98,14 +100,16 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		sbody := fmt.Sprintf("id:%s tag:%s %s", item.id, item.tag, item.err.Error())
+		sbody := fmt.Sprintf("tag:%s, params: %v error :%v", item.tag, item.params, item.err.Error())
 		if spiderErrors.errorTotal == 10 {
-			err := SendMail("spider load data error.", sbody)
+			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
+			spiderErrors.errorTotal = 0
+			spiderErrors.errorStr = ""
 		}
-		spiderErrors.errorStr += sbody + "\n"
+		spiderErrors.errorStr += sbody + "\r\n"
 		spiderErrors.errorTotal++
 		SpiderLoger.E(sbody)
 		item.err = nil
@@ -120,28 +124,26 @@ func (spider *Spider) Finish(item *Item) {
 		return
 	}
 	v := url.Values{}
-	v.Add("id", item.id)
+	v.Add("id", item.params["id"])
 	v.Add("data", fmt.Sprintf("%s", output))
-
-	url, _ := url.QueryUnescape(item.callback)
-	SpiderLoger.E("callback with error", url)
+	SpiderLoger.D(v)
+	url, _ := url.QueryUnescape(item.params["callback"])
 	loader := NewLoader(url, "Post").WithProxy(false)
 	_, err = loader.Send(v)
 	if err != nil {
-		SpiderLoger.E("callback with error", err.Error())
+		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
-	SpiderLoger.I("success with", fmt.Sprintf("tag:%s,id:%s,url:%s", item.tag, item.id, url))
+	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:%s params:%v", item.tag, item.params))
 	return
 }
 
-func (spider *Spider) Add(tag, id, callback string) {
+func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
 		tag:      tag,
-		id:       id,
+		params:   params,
 		tryTimes: 0,
-		callback: callback,
-		data:     make(map[string]string),
+		data:     make(map[string]interface{}),
 		err:      nil,
 	}
 	spider.qstart <- item

@@ -18,8 +18,6 @@ type Proxy struct {
 }
 
 var (
-	proxyUrl_0  string = "http://proxy.com.ru/niming/"
-	proxyUrl_1  string = "http://proxy.com.ru/niming/list_2.html"
 	SpiderProxy *Proxy
 	proxyNum    = 0
 )
@@ -40,10 +38,11 @@ func StartProxy() *Proxy {
 func (sp *Proxy) Daemon() {
 	go func() {
 		for {
+			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
-			sp.Servers = make(map[int]*ProxyServerInfo)
-			go sp.Load(proxyUrl_0)
-			go sp.Load(proxyUrl_1)
+			for i := 1; i < 3; i++ {
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
+			}
 			time.Sleep(time.Second * 10 * 60)
 		}
 	}()
@@ -63,38 +62,39 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 }
 
 func (sp *Proxy) Load(proxyUrl string) {
-	SpiderLoger.I("load proxy data from", proxyUrl)
 
-	loader := NewLoader(proxyUrl, "GET").WithProxy(false)
+	loader := NewLoader(proxyUrl, "GET").WithPcAgent().WithProxy(false)
 	content, err := loader.Send(nil)
 	if err != nil {
-		SpiderLoger.E("load proxy error with", proxyUrl)
-		SendMail("load proxy data error.", err.Error())
+		SpiderLoger.E("Load proxy error with", proxyUrl)
 		return
 	}
-	hp := NewHtmlParse().LoadData(content).Replace().Convert()
+	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
-		SendMail("load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
+		SendMail("Load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
 		return
+	}
+	if proxyNum == 0 {
+		sp.Servers = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
 		ip, port := string(trs[i][1]), string(trs[i][2])
 		pr := &PingResult{}
 		err = Ping(pr, ip, port)
 		if err != nil {
-			SpiderLoger.E("ping error", err.Error())
+			// SpiderLoger.W("Ping error", err.Error())
 			continue
 		}
-		if pr.LostRate == 0 && pr.Average < 300 {
+		if pr.LostRate == 0 && pr.Average < 500 {
 			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
 			proxyNum++
 		}
 	}
 	if proxyNum <= 5 {
-		SendMail("proxy server less then 5", fmt.Sprintf("spider have %d proxy servers only", proxyNum))
+		SendMail("Proxy server less then 5", fmt.Sprintf("spider have %d proxy servers only", proxyNum))
 	}
-	SpiderLoger.I("proxy server total", proxyNum)
+	SpiderLoger.I("The proxy server count", proxyNum)
 	return
 }

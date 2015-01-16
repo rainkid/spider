@@ -14,7 +14,7 @@ type Jd struct {
 }
 
 func (ti *Jd) Item() {
-	url := fmt.Sprintf("http://m.jd.com/product/%s.html", ti.item.id)
+	url := fmt.Sprintf("http://m.jd.com/product/%s.html", ti.item.params["id"])
 
 	//get content
 	loader := NewLoader(url, "Get")
@@ -22,7 +22,6 @@ func (ti *Jd) Item() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -58,7 +57,7 @@ func (ti *Jd) GetItemTitle() *Jd {
 
 func (ti *Jd) GetItemPrice() *Jd {
 	hp := NewHtmlParse().LoadData(ti.content)
-	price := hp.Partten(`(?U)id="price">&yen;(.*)\s</span>`).FindStringSubmatch()
+	price := hp.Partten(`(?U)&yen;(\d+\.\d+)`).FindStringSubmatch()
 	if price == nil {
 		ti.item.err = errors.New(`get price error`)
 		return ti
@@ -71,7 +70,7 @@ func (ti *Jd) GetItemPrice() *Jd {
 func (ti *Jd) GetItemImg() *Jd {
 	hp := NewHtmlParse().LoadData(ti.content)
 
-	img := hp.Partten(`(?U)"tbl-cell"><img src="(.*)"`).FindStringSubmatch()
+	img := hp.Partten(`(?U)src="(http://img10.360buyimg.com/.*)"`).FindStringSubmatch()
 
 	if img == nil {
 		ti.item.err = errors.New(`get img error`)
@@ -84,13 +83,12 @@ func (ti *Jd) GetItemImg() *Jd {
 
 func (ti *Jd) Shop() {
 
-	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", ti.item.id)
+	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", ti.item.params["id"])
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -112,7 +110,7 @@ func (ti *Jd) Shop() {
 func (ti *Jd) GetShopTitle() *Jd {
 	hp := NewHtmlParse()
 	hp = hp.LoadData(ti.content).Replace()
-	title := hp.Partten(`(?U)class="name">(.*)</div>`).FindStringSubmatch()
+	title := hp.Partten(`(?U)<div class="name">(.*)</div>`).FindStringSubmatch()
 	if title == nil {
 		ti.item.err = errors.New(`get jd title error.`)
 		return ti
@@ -129,14 +127,13 @@ func (ti *Jd) GetShopTitle() *Jd {
 
 func (ti *Jd) GetShopImgs() *Jd {
 
-	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.id)
+	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", ti.item.params["id"])
 
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		ti.item.err = errors.New(`shop not found.`)
 		return ti

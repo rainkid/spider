@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -14,7 +15,7 @@ type Taobao struct {
 }
 
 func (ti *Taobao) Item() {
-	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", ti.item.id)
+	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", ti.item.params["id"])
 
 	//get content
 	loader := NewLoader(url, "Get")
@@ -22,7 +23,6 @@ func (ti *Taobao) Item() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -123,7 +123,6 @@ func (ti *Taobao) Shop() {
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
@@ -140,7 +139,7 @@ func (ti *Taobao) Shop() {
 }
 
 func (ti *Taobao) GetShopTitle() *Taobao {
-	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.id)
+	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.params["id"])
 	//get content
 	loader := NewLoader(url, "Get")
 	shop, err := loader.Send(nil)
@@ -190,7 +189,7 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 	var imgs [][][]byte
 	for i := 0; i < l; i++ {
 		val := ret[i][1]
-		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.id))
+		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.params["id"]))
 		if bytes.Index(val, sep) > 0 {
 			hp1 := NewHtmlParse().LoadData(val)
 			imgs = hp1.Partten(`(?U)src="(.*)"`).FindAllSubmatch()
@@ -213,6 +212,160 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 	ti.item.data["img"] = fmt.Sprintf("%s", imgs[0][1])
 	ti.item.data["imgs"] = strings.Join(imglist, ",")
 	return ti
+}
+
+func (ti *Taobao) SameStyle() {
+	var result []map[string]string
+	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", ti.item.params["pid"], ti.item.params["id"])
+	loader := NewLoader(url, "Get").WithPcAgent().WithProxy(false)
+	content, err := loader.Send(nil)
+
+	if err != nil && ti.item.tryTimes < TryTime {
+		ti.item.err = err
+		SpiderServer.qstart <- ti.item
+		return
+	}
+
+	hp := NewHtmlParse().LoadData(content).Replace().Convert()
+	ret := hp.FindByAttr("div", "class", "row item icon-datalink")
+
+	l := len(ret) - 1
+	if l <= 0 {
+		ti.item.err = errors.New(`Can't found samestyle goods`)
+		SpiderServer.qerror <- ti.item
+		return
+	}
+	var (
+		totalPrice      float64 = 0
+		totalCount      float64 = 0
+		avgPrice        float64 = 0
+		uniquePricesArr []float64
+		pricesMap       map[float64]bool = make(map[float64]bool)
+	)
+	prices := hp.Partten(`(?U)<i>￥</i>(.*)</span>`).FindAllSubmatch()
+	if len(prices) == 0 {
+		return
+	}
+	for _, v := range prices {
+		p, err := strconv.ParseFloat(string(v[1]), 64)
+		if err != nil {
+			continue
+		}
+		if pricesMap[p] != true {
+			uniquePricesArr = append(uniquePricesArr, p)
+			pricesMap[p] = true
+		}
+		totalPrice += p
+		totalCount++
+		if totalCount == 10 {
+			break
+		}
+	}
+	sort.Float64s(uniquePricesArr)
+	//计算平均价格
+	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
+	lret := len(ret)
+	for i := 1; i < l; i++ {
+		var sortScore = lret - i
+		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0", "express": "0.00"}
+		val := ret[i][1]
+		hp1 := NewHtmlParse().LoadData(val)
+
+		id := hp1.Partten(`(?U)data-item="(\d+)"`).FindStringSubmatch()
+		data["id"] = fmt.Sprintf("%s", id[1])
+
+		score := hp1.Partten(`(?U)<span class="feature-dsr-num">(.*)</span>`).FindStringSubmatch()
+		if score != nil {
+			data["score"] = fmt.Sprintf("%s", score[1])
+		}
+		//评分低于4.8分的
+		p1, _ := strconv.ParseFloat(data["score"], 64)
+		if p1 < 4.8 {
+			// SpiderLoger.D(data["id"], "score lesslen 4.8")
+			continue
+		}
+
+		pay_num := hp1.Partten(`(?U)(\d+) 人付款`).FindStringSubmatch()
+		if pay_num != nil {
+			data["pay_num"] = fmt.Sprintf("%s", pay_num[1])
+		}
+		//销量低于3件
+		p3, _ := strconv.ParseFloat(data["pay_num"], 64)
+		if p3 < 5 {
+			// SpiderLoger.D(data["id"], "pay_num len 5")
+			continue
+		}
+
+		price := hp1.Partten(`(?U)<i>￥</i>(.*)</span>`).FindStringSubmatch()
+		data["price"] = fmt.Sprintf("%s", price[1])
+		//价格低于平均价格30%
+		p2, _ := strconv.ParseFloat(data["price"], 64)
+		if p2 < avgPrice*0.3 {
+			// SpiderLoger.D(data["id"], "price len aveprice off 30%")
+			continue
+		}
+		//价格按低到高，加分10递减
+		pos := sort.SearchFloat64s(uniquePricesArr, p2)
+		sortScore += (10 - pos)
+
+		imgs := hp1.Partten(`(?U)data-ks-lazyload="(.*)"`).FindStringSubmatch()
+		if imgs != nil {
+			data["img"] = fmt.Sprintf("%s", imgs[1])
+		}
+
+		title := hp1.Partten(`(?U)title="(.*)">`).FindStringSubmatch()
+		if title != nil {
+			data["title"] = fmt.Sprintf("%s", title[1])
+		}
+
+		area := hp1.Partten(`(?U)<div class="seller-loc">(.*)</div>`).FindStringSubmatch()
+		if area != nil {
+			data["area"] = fmt.Sprintf("%s", area[1])
+		}
+
+		istmall := bytes.Index(val, []byte(`icon-service-tianmao-large`))
+		if istmall > 0 {
+			data["channel"] = "tmall"
+			sortScore += 1
+		}
+
+		shop_title := hp1.Partten(`(?U)<a class="feature-dsc-tgr popup-tgr" trace="srpwwnick" target="_blank" href=".*"> (.*) </a>`).FindStringSubmatch()
+		if shop_title != nil {
+			data["shop_title"] = fmt.Sprintf("%s", shop_title[1])
+		}
+
+		shop_level := hp1.Partten(`(?U)<span class="icon-supple-level-(.*)"></span>`).FindAllSubmatch()
+		if shop_level != nil {
+			data["shop_level"] = fmt.Sprintf("%d-%s", len(shop_level), shop_level[0][1])
+		}
+
+		express := hp1.Partten(`(?U)<div class="shipping">(.*)</div>`).FindStringSubmatch()
+		if express != nil {
+			data["express"] = fmt.Sprintf("%s", express[1])
+		}
+
+		comment_num := hp1.Partten(`(?U)(\d+) 条评论`).FindStringSubmatch()
+		if comment_num != nil {
+			data["comment_num"] = fmt.Sprintf("%s", comment_num[1])
+		}
+
+		data["sortScore"] = fmt.Sprintf("%d", sortScore)
+
+		result = append(result, data)
+		if len(result) == 5 {
+			break
+		}
+	}
+	if len(result) == 0 {
+		ti.item.err = errors.New(fmt.Sprintf("%d result load and %d result matched", l, len(result)))
+		SpiderServer.qerror <- ti.item
+		return
+	}
+	ti.item.data["unipid"] = ti.item.params["pid"]
+	ti.item.data["nid"] = ti.item.params["id"]
+	ti.item.data["list"] = result
+	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *Taobao) CheckError() bool {

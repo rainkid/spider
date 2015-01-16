@@ -17,12 +17,11 @@ func (ti *Other) Get() {
 	var content []byte
 	var err error
 
-	loader := NewLoader(ti.item.id, "Get")
+	loader := NewLoader(ti.item.params["link"], "Get")
 	content, err = loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
-		SpiderProxy.DelProxyServer(loader.proxyId)
 		SpiderServer.qstart <- ti.item
 		return
 	}
