@@ -38,7 +38,7 @@ func (ti *Taobao) Item() {
 	if ti.GetItemImg().CheckError() {
 		return
 	}
-	fmt.Println(ti.item.data)
+	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 }
 
