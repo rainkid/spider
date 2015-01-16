@@ -56,7 +56,8 @@ func (ti *MMB) GetItemTitle() *MMB {
 
 func (ti *MMB) GetItemPrice() *MMB {
 	hp := NewHtmlParse().LoadData(ti.content)
-	price := hp.Partten(`(?U)￥.*(\d{1,10}\.\d{1,2})`).FindStringSubmatch()
+	// fmt.Println(fmt.Sprintf("%s", hp.content))
+	price := hp.Partten(`(?U)￥.*(\d+\.\d+)`).FindStringSubmatch()
 
 	if price == nil {
 		price = hp.Partten(`(?U)￥<em>(.*)</em>`).FindStringSubmatch()
