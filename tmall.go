@@ -155,13 +155,13 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 		return ti
 
 	}
-	uid := hp.Partten(`G_msp_userId = "(.*)"`).FindStringSubmatch()
-	if uid == nil {
-		ti.item.err = errors.New("get shop uid error")
-		SpiderServer.qerror <- ti.item
-		return ti
-	}
-	ti.item.data["uid"] = fmt.Sprintf("%s", uid[1])
+//	uid := hp.Partten(`G_msp_userId = "(.*)"`).FindStringSubmatch()
+//	if uid == nil {
+//		ti.item.err = errors.New("get shop uid error")
+//		SpiderServer.qerror <- ti.item
+//		return ti
+//	}
+//	ti.item.data["uid"] = fmt.Sprintf("%s", uid[1])
 	title := bytes.Replace(shopname[0][2], []byte("-"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("天猫触屏版"), []byte(""), -1)
 	title = bytes.Trim(title, " ")
