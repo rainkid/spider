@@ -57,7 +57,7 @@ func SendMail(title, content string) error {
 
 func (spider *Spider) Do(item *Item) {
 	item.tryTimes++
-	SpiderLoger.I(fmt.Sprintf("tag: %s, params: %v try with %d times.", item.tag, item.params, item.tryTimes))
+	SpiderLoger.I(fmt.Sprintf("tag: <%s>, params: %v try with (%d) times.", item.tag, item.params, item.tryTimes))
 	switch item.tag {
 	case "TmallItem":
 		ti := &Tmall{item: item}
@@ -100,7 +100,7 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		sbody := fmt.Sprintf("tag:%s, params: %v error :%v", item.tag, item.params, item.err.Error())
+		sbody := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		if spiderErrors.errorTotal == 10 {
 			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
@@ -134,7 +134,7 @@ func (spider *Spider) Finish(item *Item) {
 		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
-	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:%s params:%v", item.tag, item.params))
+	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
 	return
 }
 

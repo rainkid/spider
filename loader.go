@@ -59,6 +59,8 @@ func (l *Loader) MobildAgent() *Loader {
 
 func (l *Loader) WithPcAgent() *Loader {
 	agents := []string{
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.115 Safari/537.36",
+		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36",
 		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.94 Chrome/37.0.2062.94 Safari/537.36",
 		"Mozilla/5.0 (Windows; U; Windows NT 5.2) Gecko/2008070208 Firefox/3.0.1",
 		"Mozilla/5.0 (Windows; U; Windows NT 5.2) AppleWebKit/525.13 (KHTML, like Gecko) Version/3.1 Safari/525.13",
@@ -103,10 +105,36 @@ func (l *Loader) GetResp() (*http.Response, error) {
 	l.header()
 	return l.client.Do(l.req)
 }
+//测试代理可用
+func (l *Loader) Dial(host string,port string) (error) {
+	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
+
+
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+	}
+	transport.Proxy = http.ProxyURL(proxyUrl)
+	l.client = &http.Client{
+		CheckRedirect: l.CheckRedirect,
+		Transport:     transport,
+	}
+	resp, err := l.GetResp()
+	if err != nil {
+		return  err
+	}
+//	px := fmt.Sprintf("with proxy [%s]",proxyUrl.String());
+//	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
+	if resp.StatusCode != 200{
+		return err
+	}else{
+		return nil
+	}
+
+}
 
 func (l *Loader) Send(v url.Values) ([]byte, error) {
 	l.data = v
-
+	px := "";
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
@@ -116,19 +144,20 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			transport.Proxy = http.ProxyURL(proxyUrl)
-			SpiderLoger.D("load with proxy", proxyUrl.String())
+			px = fmt.Sprintf("with proxy [%s]",proxyUrl.String());
 		}
 	}
-	SpiderLoger.D("Loader start with", l.url)
+//	SpiderLoger.D(fmt.Sprintf("Loader start with [%s] ", l.url), px)
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
 	}
 
 	resp, err := l.GetResp()
-	if err != nil {
+	if err != nil || resp.StatusCode != 200{
 		return nil, err
 	}
+	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
 	l.resp = resp
 
 	defer l.resp.Body.Close()
