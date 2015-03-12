@@ -99,12 +99,12 @@ func (hp *HtmlParse) LoadData(content []byte) *HtmlParse {
 }
 
 func (hp *HtmlParse) Replace() *HtmlParse {
-	var data []byte
+	data := hp.content
 	length := len(hp.replaces)
 	for i := 0; i < length; i++ {
 		if l := len(hp.replaces[i]); l > 0 {
 			p, r := hp.replaces[i][:1], hp.replaces[i][1:2]
-			hp.content = regexp.MustCompile(p[0]).ReplaceAll(hp.content, []byte(r[0]))
+			data = regexp.MustCompile(p[0]).ReplaceAll(data, []byte(r[0]))
 		}
 	}
 	hp.content = data

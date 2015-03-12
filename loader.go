@@ -85,6 +85,7 @@ func (l *Loader) Sample() ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -127,6 +128,7 @@ func (l *Loader) Dial(host string,port string) (error) {
 		return  err
 	}
 	defer resp.Body.Close()
+	
 	if resp.StatusCode != 200{
 		return err
 	}else{
@@ -160,9 +162,10 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 	if err != nil || resp.StatusCode != 200{
 		return nil, err
 	}
-	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
-
 	defer resp.Body.Close()
+
+	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
+	
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
