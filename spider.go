@@ -150,6 +150,7 @@ func (spider *Spider) Add(tag string, params map[string]string) {
 		err:      nil,
 	}
 	spider.qstart <- item
+	return
 }
 
 func (spider *Spider) Daemon() {

@@ -42,6 +42,7 @@ func (ti *Tmall) Item() {
 	}
 	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *Tmall) GetItemTitle() *Tmall {
@@ -132,6 +133,7 @@ func (ti *Tmall) Shop() {
 	}
 	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *Tmall) GetShopTitle() *Tmall {
