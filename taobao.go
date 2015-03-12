@@ -40,6 +40,7 @@ func (ti *Taobao) Item() {
 	}
 	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *Taobao) GetItemTitle() *Taobao {
@@ -135,6 +136,7 @@ func (ti *Taobao) Shop() {
 	}
 	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *Taobao) GetShopTitle() *Taobao {

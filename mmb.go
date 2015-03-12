@@ -39,6 +39,7 @@ func (ti *MMB) Item() {
 		return
 	}
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *MMB) GetItemTitle() *MMB {
