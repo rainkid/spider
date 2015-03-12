@@ -52,7 +52,8 @@ func Start() *Spider {
 }
 
 func SendMail(title, content string) error {
-	return utils.SendMail("rainkid@163.com", "Rainkid,.0.", "smtp.163.com:25", "liaohu@gionee.com", title, content, "html")
+	_title, _content := title, content
+	return utils.SendMail("rainkid@163.com", "Rainkid,.0.", "smtp.163.com:25", "liaohu@gionee.com", _title, _content, "html")
 }
 
 func (spider *Spider) Do(item *Item) {
