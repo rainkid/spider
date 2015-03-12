@@ -18,8 +18,8 @@ func (ti *Taobao) Item() {
 	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", ti.item.params["id"])
 
 	//get content
-	loader := NewLoader(url, "Get")
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get")
+	content, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -43,8 +43,8 @@ func (ti *Taobao) Item() {
 }
 
 func (ti *Taobao) GetItemTitle() *Taobao {
-	hp := NewHtmlParse().LoadData(ti.content)
-	title := hp.Partten(`(?U)"itemId":"\d+","title":"(.*)"`).FindStringSubmatch()
+	ti.item.htmlParse.LoadData(ti.content)
+	title := ti.item.htmlParse.Partten(`(?U)"itemId":"\d+","title":"(.*)"`).FindStringSubmatch()
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
@@ -52,21 +52,21 @@ func (ti *Taobao) GetItemTitle() *Taobao {
 	}
 	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
 
-	favcount := hp.Partten(`(?U)"favcount":"(\d+)"`).FindStringSubmatch()
+	favcount := ti.item.htmlParse.Partten(`(?U)"favcount":"(\d+)"`).FindStringSubmatch()
 	if favcount == nil {
 		ti.item.err = errors.New(`get favcount error`)
 		return ti
 	}
 	ti.item.data["favcount"] = fmt.Sprintf("%s", favcount[1])
 
-	totalSoldQuantity := hp.Partten(`(?U)"totalSoldQuantity":"(\d+)"`).FindStringSubmatch()
+	totalSoldQuantity := ti.item.htmlParse.Partten(`(?U)"totalSoldQuantity":"(\d+)"`).FindStringSubmatch()
 	if totalSoldQuantity == nil {
 		ti.item.err = errors.New(`get totalSoldQuantity error`)
 		return ti
 	}
 	ti.item.data["totalSoldQuantity"] = fmt.Sprintf("%s", totalSoldQuantity[1])
 
-	goodRatePercentage := hp.Partten(`(?U)"goodRatePercentage":"(.*)"`).FindStringSubmatch()
+	goodRatePercentage := ti.item.htmlParse.Partten(`(?U)"goodRatePercentage":"(.*)"`).FindStringSubmatch()
 	if goodRatePercentage == nil {
 		ti.item.err = errors.New(`get goodRatePercentage error`)
 		return ti
@@ -77,11 +77,11 @@ func (ti *Taobao) GetItemTitle() *Taobao {
 }
 
 func (ti *Taobao) GetItemPrice() *Taobao {
-	hp := NewHtmlParse().LoadData(ti.content)
-	price := hp.Partten(`(?U)"rangePrice":".*","price":"(.*)"`).FindStringSubmatch()
+	ti.item.htmlParse.LoadData(ti.content)
+	price := ti.item.htmlParse.Partten(`(?U)"rangePrice":".*","price":"(.*)"`).FindStringSubmatch()
 
 	if price == nil {
-		price = hp.Partten(`(?U)"price":"(.*)"`).FindStringSubmatch()
+		price = ti.item.htmlParse.Partten(`(?U)"price":"(.*)"`).FindStringSubmatch()
 	}
 	if price == nil {
 		ti.item.err = errors.New(`get price error`)
@@ -101,7 +101,7 @@ func (ti *Taobao) GetItemPrice() *Taobao {
 }
 
 func (ti *Taobao) GetItemImg() *Taobao {
-	hp := NewHtmlParse().LoadData(ti.content)
+	hp := ti.item.htmlParse.LoadData(ti.content)
 	img := hp.Partten(`(?U)"picsPath":\["(.*)"`).FindStringSubmatch()
 
 	if img == nil {
@@ -118,8 +118,8 @@ func (ti *Taobao) Shop() {
 	}
 	url := fmt.Sprintf("http://s.taobao.com/search?q=%s&app=shopsearch", ti.item.data["title"])
 	//get content
-	loader := NewLoader(url, "Get").WithPcAgent()
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get").WithPcAgent()
+	content, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -127,9 +127,8 @@ func (ti *Taobao) Shop() {
 		return
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(content).CleanScript().Replace().Convert()
-	ti.content = hp.content
+	ti.item.htmlParse.LoadData(content).CleanScript().Replace().Convert()
+	ti.content = ti.item.htmlParse.content
 
 	if ti.GetShopImgs().CheckError() {
 		return
@@ -141,8 +140,8 @@ func (ti *Taobao) Shop() {
 func (ti *Taobao) GetShopTitle() *Taobao {
 	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.params["id"])
 	//get content
-	loader := NewLoader(url, "Get")
-	shop, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get")
+	shop, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -150,9 +149,8 @@ func (ti *Taobao) GetShopTitle() *Taobao {
 		return ti
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(shop).Replace()
-	shopname := hp.FindByTagName("title")
+	ti.item.htmlParse.LoadData(shop).Replace()
+	shopname := ti.item.htmlParse.FindByTagName("title")
 
 	if shopname == nil {
 		ti.item.err = errors.New("get shop title error")
@@ -178,8 +176,8 @@ func (ti *Taobao) GetShopTitle() *Taobao {
 }
 
 func (ti *Taobao) GetShopImgs() *Taobao {
-	hp := NewHtmlParse().LoadData(ti.content)
-	ret := hp.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
+	ti.item.htmlParse.LoadData(ti.content)
+	ret := ti.item.htmlParse.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
 	l := len(ret)
 
 	if l == 0 {
@@ -191,7 +189,7 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 		val := ret[i][1]
 		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.params["id"]))
 		if bytes.Index(val, sep) > 0 {
-			hp1 := NewHtmlParse().LoadData(val)
+			hp1 := ti.item.htmlParse.LoadData(val)
 			imgs = hp1.Partten(`(?U)src="(.*)"`).FindAllSubmatch()
 		}
 
@@ -217,8 +215,8 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 func (ti *Taobao) SameStyle() {
 	var result []map[string]string
 	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", ti.item.params["pid"], ti.item.params["id"])
-	loader := NewLoader(url, "Get").WithPcAgent().WithProxy(false)
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get").WithPcAgent().WithProxy(false)
+	content, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -226,7 +224,7 @@ func (ti *Taobao) SameStyle() {
 		return
 	}
 
-	hp := NewHtmlParse().LoadData(content).Replace().Convert()
+	hp := ti.item.htmlParse.LoadData(content).Replace().Convert()
 	ret := hp.FindByAttr("div", "class", "row item icon-datalink")
 
 	l := len(ret) - 1
@@ -269,7 +267,7 @@ func (ti *Taobao) SameStyle() {
 		var sortScore = lret - i
 		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0", "express": "0.00"}
 		val := ret[i][1]
-		hp1 := NewHtmlParse().LoadData(val)
+		hp1 := ti.item.htmlParse.LoadData(val)
 
 		id := hp1.Partten(`(?U)data-item="(\d+)"`).FindStringSubmatch()
 		data["id"] = fmt.Sprintf("%s", id[1])

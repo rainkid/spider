@@ -17,8 +17,8 @@ func (ti *Other) Get() {
 	var content []byte
 	var err error
 
-	loader := NewLoader(ti.item.params["link"], "Get")
-	content, err = loader.Send(nil)
+	ti.item.loader = NewLoader(ti.item.params["link"], "Get")
+	content, err = ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -26,10 +26,8 @@ func (ti *Other) Get() {
 		return
 	}
 
-	hp := NewHtmlParse()
-
-	hp = hp.LoadData(content).CleanScript().Replace()
-	ct := []byte(loader.rheader.Get("Content-Type"))
+	ti.item.htmlParse.LoadData(content).CleanScript().Replace()
+	ct := []byte(ti.item.loader.rheader.Get("Content-Type"))
 	ct = bytes.ToLower(ct)
 
 	var needconv bool = true
@@ -38,20 +36,20 @@ func (ti *Other) Get() {
 	}
 
 	if needconv && bytes.Index(ct, []byte("gbk")) > 0 {
-		hp.Convert()
+		ti.item.htmlParse.Convert()
 		needconv = false
 	}
 
 	if needconv && bytes.Index(ct, []byte("gb2312")) > 0 {
-		hp.Convert()
+		ti.item.htmlParse.Convert()
 		needconv = false
 	}
 
-	if needconv && hp.IsGbk() {
-		hp.Convert()
+	if needconv && ti.item.htmlParse.IsGbk() {
+		ti.item.htmlParse.Convert()
 	}
 
-	ti.content = hp.content
+	ti.content = ti.item.htmlParse.content
 
 	//get title and check
 	if ti.GetOtherTitle().CheckError() {
@@ -62,7 +60,7 @@ func (ti *Other) Get() {
 }
 
 func (ti *Other) GetOtherTitle() *Other {
-	hp := NewHtmlParse().LoadData(ti.content)
+	hp := ti.item.htmlParse.LoadData(ti.content)
 	title := hp.FindByTagName("title")
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)

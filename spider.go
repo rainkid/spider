@@ -9,7 +9,7 @@ import (
 
 var (
 	SpiderServer *Spider
-	spiderErrors *SpiderErrors
+	spiderErrors *SpiderErrors = &SpiderErrors{errorTotal:0, errorStr:""}
 	SpiderLoger  *MyLoger      = NewMyLoger()
 	TryTime                    = 10
 )
@@ -26,6 +26,8 @@ type Spider struct {
 }
 
 type Item struct {
+	loader *Loader
+	htmlParse *HtmlParse
 	params   map[string]string
 	data     map[string]interface{}
 	tag      string
@@ -101,16 +103,14 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		if spiderErrors == nil {
-			spiderErrors = &SpiderErrors{errorTotal:0, errorStr:""}
-		}
 		sbody := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		if spiderErrors.errorTotal == 10 {
 			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
-			spiderErrors = nil
+			spiderErrors.errorTotal  = 0
+			spiderErrors.errorStr = ""
 		}
 		spiderErrors.errorStr += sbody + "\r\n"
 		spiderErrors.errorTotal++
@@ -138,11 +138,13 @@ func (spider *Spider) Finish(item *Item) {
 		return
 	}
 	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
+	item = nil
 	return
 }
 
 func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
+		htmlParse: NewHtmlParse(),
 		tag:      tag,
 		params:   params,
 		tryTimes: 0,

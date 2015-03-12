@@ -17,8 +17,8 @@ func (ti *Tmall) Item() {
 	url := fmt.Sprintf("http://detail.m.tmall.com/item.htm?id=%s", ti.item.params["id"])
 
 	//get content
-	loader := NewLoader(url, "Get")
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get")
+	content, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -26,9 +26,8 @@ func (ti *Tmall) Item() {
 		return
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(content).Convert().Replace()
-	ti.content = hp.content
+	ti.item.htmlParse.LoadData(content).Convert().Replace()
+	ti.content = ti.item.htmlParse.content
 
 	if ti.GetItemTitle().CheckError() {
 		return
@@ -45,8 +44,8 @@ func (ti *Tmall) Item() {
 }
 
 func (ti *Tmall) GetItemTitle() *Tmall {
-	hp := NewHtmlParse().LoadData(ti.content)
-	title := hp.Partten(`(?U)"title":"(.*)"`).FindStringSubmatch()
+	ti.item.htmlParse.LoadData(ti.content)
+	title := ti.item.htmlParse.Partten(`(?U)"title":"(.*)"`).FindStringSubmatch()
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
@@ -57,9 +56,9 @@ func (ti *Tmall) GetItemTitle() *Tmall {
 }
 
 func (ti *Tmall) GetItemPrice() *Tmall {
-	hp := NewHtmlParse().LoadData(ti.content)
+	ti.item.htmlParse.LoadData(ti.content)
 
-	defaultPriceArr := hp.FindByAttr("b", "class", "ui-yen")
+	defaultPriceArr := ti.item.htmlParse.FindByAttr("b", "class", "ui-yen")
 	defaultPriceStr := bytes.Replace(defaultPriceArr[0][2], []byte("&yen;"), []byte(""), -1)
 
 	var price float64
@@ -70,11 +69,11 @@ func (ti *Tmall) GetItemPrice() *Tmall {
 		price, _ = strconv.ParseFloat(fmt.Sprintf("%s", defaultPriceStr), 64)
 	}
 
-	jsonData := hp.Partten(`"defaultPriceInfoDO"(.*)"detailPageTipsDO"`).FindStringSubmatch()
+	jsonData := ti.item.htmlParse.Partten(`"defaultPriceInfoDO"(.*)"detailPageTipsDO"`).FindStringSubmatch()
 
 	if jsonData != nil {
-		hp.LoadData(jsonData[0])
-		prices := hp.FindJsonStr("price")
+		ti.item.htmlParse.LoadData(jsonData[0])
+		prices := ti.item.htmlParse.FindJsonStr("price")
 
 		lp := len(prices)
 		if prices != nil {
@@ -93,13 +92,13 @@ func (ti *Tmall) GetItemPrice() *Tmall {
 }
 
 func (ti *Tmall) GetItemImg() *Tmall {
-	hp := NewHtmlParse().LoadData(ti.content)
-	data := hp.FindByAttr("section", "id", "s-showcase")
+	ti.item.htmlParse.LoadData(ti.content)
+	data := ti.item.htmlParse.FindByAttr("section", "id", "s-showcase")
 	if data == nil {
 		ti.item.err = errors.New(`get imgs error`)
 		return ti
 	}
-	pdata := hp.LoadData(data[0][2]).Partten(`(?U)src="(.*)"`).FindStringSubmatch()
+	pdata := ti.item.htmlParse.LoadData(data[0][2]).Partten(`(?U)src="(.*)"`).FindStringSubmatch()
 	if pdata == nil {
 		ti.item.err = errors.New(`get imgs error`)
 		return ti
@@ -114,8 +113,8 @@ func (ti *Tmall) Shop() {
 	}
 	url := fmt.Sprintf("http://s.taobao.com/search?q=%s&app=shopsearch", ti.item.data["title"])
 	//get content
-	loader := NewLoader(url, "Get").WithPcAgent()
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get").WithPcAgent()
+	content, err := ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -123,9 +122,8 @@ func (ti *Tmall) Shop() {
 		return
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(content).CleanScript().Replace().Convert()
-	ti.content = hp.content
+	ti.item.htmlParse.LoadData(content).CleanScript().Replace().Convert()
+	ti.content = ti.item.htmlParse.content
 
 	if ti.GetShopImgs().CheckError() {
 		return
@@ -137,8 +135,8 @@ func (ti *Tmall) Shop() {
 func (ti *Tmall) GetShopTitle() *Tmall {
 	url := fmt.Sprintf("http://shop.m.tmall.com/?shop_id=%s", ti.item.params["id"])
 	//get content
-	loader := NewLoader(url, "Get")
-	shop, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get")
+	shop, err :=ti.item.loader.Send(nil)
 
 	if err != nil && ti.item.tryTimes < TryTime {
 		ti.item.err = err
@@ -146,16 +144,15 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 		return ti
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(shop)
-	shopname := hp.FindByTagName("title")
+	ti.item.htmlParse.LoadData(shop)
+	shopname := ti.item.htmlParse.FindByTagName("title")
 	if shopname == nil {
 		ti.item.err = errors.New("get shop title error")
 		SpiderServer.qerror <- ti.item
 		return ti
 
 	}
-//	uid := hp.Partten(`G_msp_userId = "(.*)"`).FindStringSubmatch()
+//	uid := ti.item.htmlParse.Partten(`G_msp_userId = "(.*)"`).FindStringSubmatch()
 //	if uid == nil {
 //		ti.item.err = errors.New("get shop uid error")
 //		SpiderServer.qerror <- ti.item
@@ -170,8 +167,8 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 }
 
 func (ti *Tmall) GetShopImgs() *Tmall {
-	hp := NewHtmlParse().LoadData(ti.content)
-	ret := hp.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
+	ti.item.htmlParse.LoadData(ti.content)
+	ret := ti.item.htmlParse.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
 	l := len(ret)
 
 	if l == 0 {
@@ -183,8 +180,8 @@ func (ti *Tmall) GetShopImgs() *Tmall {
 		val := ret[i][1]
 		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.params["id"]))
 		if bytes.Index(val, sep) > 0 {
-			hp1 := NewHtmlParse().LoadData(val)
-			imgs = hp1.Partten(`(?U)src="(.*)"`).FindAllSubmatch()
+			ti.item.htmlParse = ti.item.htmlParse.LoadData(val)
+			imgs = ti.item.htmlParse.Partten(`(?U)src="(.*)"`).FindAllSubmatch()
 		}
 
 	}
