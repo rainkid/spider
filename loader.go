@@ -8,6 +8,7 @@ import (
 	utils "libs/utils"
 	"net/http"
 	"net/url"
+	"time"
 	"strconv"
 	"strings"
 )
@@ -71,8 +72,8 @@ func (l *Loader) WithPcAgent() *Loader {
 }
 
 func (l *Loader) CheckRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 20 {
-		return errors.New("stopped after 20 redirects")
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
 	}
 	l.redirects++
 	return nil
@@ -111,6 +112,7 @@ func (l *Loader) Dial(host string,port string) (error) {
 
 
 	transport := &http.Transport{
+		ResponseHeaderTimeout:time.Duration(5),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 	transport.Proxy = http.ProxyURL(proxyUrl)
