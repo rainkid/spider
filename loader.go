@@ -14,8 +14,7 @@ import (
 
 type Loader struct {
 	client    *http.Client
-	req       *http.Request
-	resp      *http.Response
+	request       *http.Request
 	data      url.Values
 	redirects int64
 	rheader   http.Header
@@ -93,18 +92,19 @@ func (l *Loader) Sample() ([]byte, error) {
 	return body, nil
 }
 
-func (l *Loader) GetResp() (*http.Response, error) {
+func (l *Loader) GetRequest() {
 	if l.method == "POST" {
-		l.req, _ = http.NewRequest(l.method, l.url, strings.NewReader(l.data.Encode()))
+		l.request, _ = http.NewRequest(l.method, l.url, strings.NewReader(l.data.Encode()))
 	} else {
-		l.req, _ = http.NewRequest(l.method, l.url, nil)
+		l.request, _ = http.NewRequest(l.method, l.url, nil)
 	}
-	l.req.Close = true
+	l.request.Close = true
 
 	//set headers
 	l.header()
-	return l.client.Do(l.req)
+	return
 }
+
 //测试代理可用
 func (l *Loader) Dial(host string,port string) (error) {
 	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
@@ -118,18 +118,18 @@ func (l *Loader) Dial(host string,port string) (error) {
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
 	}
-	resp, err := l.GetResp()
+	
+	l.GetRequest()
+	resp,err := l.client.Do(l.request)
 	if err != nil {
 		return  err
 	}
-//	px := fmt.Sprintf("with proxy [%s]",proxyUrl.String());
-//	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
+	defer resp.Body.Close()
 	if resp.StatusCode != 200{
 		return err
 	}else{
 		return nil
 	}
-
 }
 
 func (l *Loader) Send(v url.Values) ([]byte, error) {
@@ -153,36 +153,33 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 		Transport:     transport,
 	}
 
-	resp, err := l.GetResp()
+	l.GetRequest()
+	resp, err := l.client.Do(l.request)
 	if err != nil || resp.StatusCode != 200{
 		return nil, err
 	}
 	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
-	l.resp = resp
 
-	defer l.resp.Body.Close()
-	body, err := ioutil.ReadAll(l.resp.Body)
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	l.rheader = l.resp.Header
+	l.rheader = resp.Header
 	return body, nil
 }
 
-func (l *Loader) GetHeader() http.Header {
-	return l.rheader
-}
 
 func (l *Loader) SetHeader(key, value string) {
 	l.mheader[key] = value
 }
 
 func (l *Loader) header() {
-	l.req.Close = true
+	l.request.Close = true
 	if l.method == "POST" {
-		l.req.Header.Add("Content-Length", strconv.Itoa(len(l.data.Encode())))
+		l.request.Header.Add("Content-Length", strconv.Itoa(len(l.data.Encode())))
 	}
 	for h, v := range l.mheader {
-		l.req.Header.Set(h, v)
+		l.request.Header.Set(h, v)
 	}
 }

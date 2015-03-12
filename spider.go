@@ -9,7 +9,7 @@ import (
 
 var (
 	SpiderServer *Spider
-	spiderErrors *SpiderErrors = &SpiderErrors{}
+	spiderErrors *SpiderErrors
 	SpiderLoger  *MyLoger      = NewMyLoger()
 	TryTime                    = 10
 )
@@ -100,14 +100,16 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
+		if spiderErrors == nil {
+			spiderErrors = &SpiderErrors{errorTotal:0, errorStr:""}
+		}
 		sbody := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		if spiderErrors.errorTotal == 10 {
 			err := SendMail("spider load data error.", spiderErrors.errorStr)
 			if err != nil {
 				SpiderLoger.E("send mail fail.")
 			}
-			spiderErrors.errorTotal = 0
-			spiderErrors.errorStr = ""
+			spiderErrors = nil
 		}
 		spiderErrors.errorStr += sbody + "\r\n"
 		spiderErrors.errorTotal++
