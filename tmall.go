@@ -155,7 +155,7 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 		return ti
 
 	}
-	uid := hp.Partten(`G_msp_userId = "(.*)"`).FindStringSubmatch()
+	uid := hp.Partten(`G_msp_userId = "(\d+)"`).FindStringSubmatch()
 	if uid == nil {
 		ti.item.err = errors.New("get shop uid error")
 		SpiderServer.qerror <- ti.item
