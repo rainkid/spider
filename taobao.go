@@ -153,7 +153,6 @@ func (ti *Taobao) GetShopTitle() *Taobao {
 	hp := NewHtmlParse()
 	hp = hp.LoadData(shop).Replace()
 	shopname := hp.FindByTagName("title")
-	uid := hp.Partten(`G_msp_userId="(\d+)"`).FindStringSubmatch()
 
 	if shopname == nil {
 		ti.item.err = errors.New("get shop title error")
@@ -161,12 +160,13 @@ func (ti *Taobao) GetShopTitle() *Taobao {
 		return ti
 
 	}
-	if uid == nil {
-		ti.item.err = errors.New("get shop uid error")
-		SpiderServer.qerror <- ti.item
-		return ti
-	}
-	ti.item.data["uid"] = fmt.Sprintf("%s", uid[1])
+//	uid := hp.Partten(`G_msp_userId="(\d+)"`).FindStringSubmatch()
+//	if uid == nil {
+//		ti.item.err = errors.New("get shop uid error")
+//		SpiderServer.qerror <- ti.item
+//		return ti
+//	}
+//	ti.item.data["uid"] = fmt.Sprintf("%s", uid[1])
 	title := bytes.Replace(shopname[0][2], []byte("首页"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("淘宝网"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("天猫"), []byte(""), -1)
