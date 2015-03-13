@@ -113,13 +113,14 @@ func (l *Loader) Dial(host string,port string) (error) {
 
 
 	transport := &http.Transport{
-		ResponseHeaderTimeout:time.Duration(5),
+		ResponseHeaderTimeout:time.Duration(5 * time.Second),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 	transport.Proxy = http.ProxyURL(proxyUrl)
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
+		Timeout:   time.Duration(5 * time.Second),
 	}
 	
 	l.GetRequest()
