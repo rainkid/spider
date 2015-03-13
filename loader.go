@@ -118,7 +118,8 @@ func (l *Loader) Dial(host string,port string) (error) {
 
 	transport := &http.Transport{
 		Dial:l.dialTimeout,
-    		DisableKeepAlives: true,
+    		TLSHandshakeTimeout:time.Duration(40 * time.Second),
+    		ResponseHeaderTimeout:time.Duration(40 * time.Second),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 	transport.Proxy = http.ProxyURL(proxyUrl)
