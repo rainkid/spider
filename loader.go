@@ -109,7 +109,7 @@ func (l *Loader) GetRequest() {
 }
 
 func (l *Loader) dialTimeout(network, addr string) (net.Conn, error) {
-    return net.DialTimeout(network, addr, time.Duration(20 * time.Second))
+    return net.DialTimeout(network, addr, time.Duration(40 * time.Second))
 }
 
 //测试代理可用
@@ -119,14 +119,14 @@ func (l *Loader) Dial(host string,port string) (error) {
 
 	transport := &http.Transport{
 		Dial:l.dialTimeout,
-    	DisableKeepAlives: true,
+    	TLSHandshakeTimeout:time.Duration(40 * time.Second),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 	transport.Proxy = http.ProxyURL(proxyUrl)
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
-		Transport:     transport,
-		Timeout:   time.Duration(20 * time.Second),
+		Transport:transport,
+		Timeout:time.Duration(20 * time.Second),
 	}
 	
 	l.GetRequest()
