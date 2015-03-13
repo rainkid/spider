@@ -8,6 +8,7 @@ import (
 	utils "libs/utils"
 	"net/http"
 	"net/url"
+	"net"
 	"time"
 	"strconv"
 	"strings"
@@ -107,13 +108,18 @@ func (l *Loader) GetRequest() {
 	return
 }
 
+func (l *Loader) dialTimeout(network, addr string) (net.Conn, error) {
+    return net.DialTimeout(network, addr, time.Duration(5 * time.Second))
+}
+
 //测试代理可用
 func (l *Loader) Dial(host string,port string) (error) {
 	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
 
 
 	transport := &http.Transport{
-		ResponseHeaderTimeout:time.Duration(5 * time.Second),
+		Dial:l.dialTimeout,
+    	DisableKeepAlives: true,
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 	transport.Proxy = http.ProxyURL(proxyUrl)
