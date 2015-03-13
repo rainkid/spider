@@ -109,7 +109,7 @@ func (l *Loader) GetRequest() {
 }
 
 func (l *Loader) dialTimeout(network, addr string) (net.Conn, error) {
-    return net.DialTimeout(network, addr, time.Duration(5 * time.Second))
+    return net.DialTimeout(network, addr, time.Duration(20 * time.Second))
 }
 
 //测试代理可用
@@ -126,7 +126,7 @@ func (l *Loader) Dial(host string,port string) (error) {
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
-		Timeout:   time.Duration(5 * time.Second),
+		Timeout:   time.Duration(20 * time.Second),
 	}
 	
 	l.GetRequest()
