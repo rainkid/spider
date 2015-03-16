@@ -111,7 +111,7 @@ func (l *Loader) GetRequest() {
 func (l *Loader) Send(data url.Values) ([]byte, error) {
 	l.data = data
 	transport := &http.Transport{
-    	ResponseHeaderTimeout:time.Duration(40 * time.Second),
+    	ResponseHeaderTimeout:time.Duration(10 * time.Second),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 
@@ -120,10 +120,9 @@ func (l *Loader) Send(data url.Values) ([]byte, error) {
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			transport.Proxy = http.ProxyURL(proxyUrl)
-			px = fmt.Sprintf("with proxy [%s]",proxyUrl.String());
 		}
 	}
-//	SpiderLoger.D(fmt.Sprintf("Loader start with [%s] ", l.url), px)
+	SpiderLoger.D(fmt.Sprintf("Loader start with [%s] ", l.url), px)
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
