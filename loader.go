@@ -122,7 +122,7 @@ func (l *Loader) Send(data url.Values) ([]byte, error) {
 			transport.Proxy = http.ProxyURL(proxyUrl)
 		}
 	}
-	SpiderLoger.D(fmt.Sprintf("Loader start with [%s] ", l.url), px)
+
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
 		Transport:     transport,
@@ -135,12 +135,12 @@ func (l *Loader) Send(data url.Values) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy.", resp.StatusCode, l.url))
+
 	if resp.StatusCode != 200 {
 		return nil, err
 	}
 
-	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
-	
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
