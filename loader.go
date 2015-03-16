@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	utils "libs/utils"
-	"net/http"
 	"net/url"
 	"net"
 	"time"
