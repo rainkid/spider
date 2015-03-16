@@ -47,11 +47,6 @@ func Start() *Spider {
 	return SpiderServer
 }
 
-func SendMail(title, content string) error {
-	_title, _content := title, content
-	return utils.SendMail("rainkid@163.com", "Rainkid,.0.", "smtp.163.com:25", "liaohu@gionee.com", _title, _content, "html")
-}
-
 func (spider *Spider) Do(item *Item) {
 	item.tryTimes++
 	SpiderLoger.I(fmt.Sprintf("tag: <%s>, params: %v try with (%d) times.", item.tag, item.params, item.tryTimes))
@@ -99,6 +94,9 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		SpiderLoger.E(err)
+		if item->tryTimes < 10 {
+			SpiderServer.qstart<-item
+		}
 		item.err = nil
 	}
 	return

@@ -20,9 +20,9 @@ func (ti *Jd) Item() {
 	ti.item.loader = NewLoader(url, "Get")
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
@@ -87,9 +87,9 @@ func (ti *Jd) Shop() {
 	ti.item.loader = NewLoader(url, "Get")
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 

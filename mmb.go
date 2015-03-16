@@ -18,9 +18,9 @@ func (ti *MMB) Item() {
 	ti.item.loader = NewLoader(url, "Get")
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < 3 {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 

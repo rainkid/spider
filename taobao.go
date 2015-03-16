@@ -21,9 +21,9 @@ func (ti *Taobao) Item() {
 	ti.item.loader = NewLoader(url, "Get")
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
@@ -122,9 +122,9 @@ func (ti *Taobao) Shop() {
 	ti.item.loader = NewLoader(url, "Get").WithPcAgent()
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
@@ -145,10 +145,10 @@ func (ti *Taobao) GetShopTitle() *Taobao {
 	ti.item.loader = NewLoader(url, "Get")
 	shop, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
-		return ti
+		SpiderServer.qerror <- ti.item
+		return
 	}
 
 	ti.item.htmlParse.LoadData(shop).Replace()
@@ -220,9 +220,9 @@ func (ti *Taobao) SameStyle() {
 	ti.item.loader = NewLoader(url, "Get").WithPcAgent().WithProxy(false)
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 

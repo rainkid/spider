@@ -20,9 +20,9 @@ func (ti *Other) Get() {
 	ti.item.loader = NewLoader(ti.item.params["link"], "Get")
 	content, err = ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
