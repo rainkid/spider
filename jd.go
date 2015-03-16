@@ -131,10 +131,9 @@ func (ti *Jd) GetShopImgs() *Jd {
 	ti.item.loader = NewLoader(url, "Get")
 	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < TryTime {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
-		ti.item.err = errors.New(`shop not found.`)
+		SpiderServer.qerror <- ti.item
 		return ti
 	}
 

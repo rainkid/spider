@@ -9,7 +9,6 @@ import (
 var (
 	SpiderServer *Spider
 	SpiderLoger  *MyLoger      = NewMyLoger()
-	TryTime                    = 10
 )
 
 type Spider struct {
