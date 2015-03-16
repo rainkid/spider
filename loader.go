@@ -107,40 +107,11 @@ func (l *Loader) GetRequest() {
 	return
 }
 
-//测试代理可用
-func (l *Loader) Dial(host string,port string) (error) {
-	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
 
+func (l *Loader) Send(data url.Values) ([]byte, error) {
+	l.data = data
 	transport := &http.Transport{
-		DisableKeepAlives:true,
     	ResponseHeaderTimeout:time.Duration(40 * time.Second),
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-	}
-	transport.Proxy = http.ProxyURL(proxyUrl)
-	l.client = &http.Client{
-		CheckRedirect: l.CheckRedirect,
-		Transport:     transport,
-		Timeout:   time.Duration(40 * time.Second),
-	}
-	
-	l.GetRequest()
-	resp,err := l.client.Do(l.request)
-	if err != nil {
-		return  err
-	}
-	defer resp.Body.Close()
-	
-	if resp.StatusCode != 200{
-		return err
-	}else{
-		return nil
-	}
-}
-
-func (l *Loader) Send(v url.Values) ([]byte, error) {
-	l.data = v
-	px := "";
-	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
 
@@ -160,10 +131,14 @@ func (l *Loader) Send(v url.Values) ([]byte, error) {
 
 	l.GetRequest()
 	resp, err := l.client.Do(l.request)
-	if err != nil || resp.StatusCode != 200{
+	if err != nil{
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, err
+	}
 
 	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
 	
