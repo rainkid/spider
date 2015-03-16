@@ -9,15 +9,9 @@ import (
 
 var (
 	SpiderServer *Spider
-	spiderErrors *SpiderErrors = &SpiderErrors{errorTotal:0, errorStr:""}
 	SpiderLoger  *MyLoger      = NewMyLoger()
 	TryTime                    = 10
 )
-
-type SpiderErrors struct {
-	errorStr   string
-	errorTotal int
-}
 
 type Spider struct {
 	qstart  chan *Item
@@ -103,18 +97,8 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		sbody := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
-		if spiderErrors.errorTotal == 10 {
-			err := SendMail("spider load data error.", spiderErrors.errorStr)
-			if err != nil {
-				SpiderLoger.E("send mail fail.")
-			}
-			spiderErrors.errorTotal  = 0
-			spiderErrors.errorStr = ""
-		}
-		spiderErrors.errorStr += sbody + "\r\n"
-		spiderErrors.errorTotal++
-		SpiderLoger.E(sbody)
+		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
+		SpiderLoger.E(err)
 		item.err = nil
 	}
 	return
