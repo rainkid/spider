@@ -41,7 +41,7 @@ func (sp *Proxy) Daemon() {
 			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
 			for i := 1; i < 5; i++ {
-				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/list_%d.html", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
