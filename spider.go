@@ -3,7 +3,6 @@ package spider
 import (
 	"encoding/json"
 	"fmt"
-	utils "libs/utils"
 	"net/url"
 )
 
@@ -94,10 +93,11 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		SpiderLoger.E(err)
-		if item->tryTimes < 10 {
+		if item.tryTimes < 10 {
 			SpiderServer.qstart<-item
+			return
 		}
-		item.err = nil
+		item = nil
 	}
 	return
 }

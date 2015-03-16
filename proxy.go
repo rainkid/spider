@@ -2,8 +2,8 @@ package spider
 
 import (
 	"fmt"
-	utils "libs/utils"
 	"time"
+	"libs/utils"
 )
 
 type ProxyServerInfo struct {
@@ -75,7 +75,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
-		SendMail("Load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
+		SpiderLoger.E("load proxy data from "+proxyUrl+" error. ")
 		return
 	}
 	if proxyNum == 0 {
@@ -95,7 +95,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		}
 	}
 	if proxyNum <= 5 {
-		SendMail("Proxy server less then 5", fmt.Sprintf("spider have %d proxy servers only", proxyNum))
+		SpiderLoger.E("spider have %d proxy servers only", proxyNum)
 	}
 	SpiderLoger.I("The proxy server count", proxyNum)
 	return

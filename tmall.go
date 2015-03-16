@@ -143,7 +143,7 @@ func (ti *Tmall) GetShopTitle() *Tmall {
 	if err != nil {
 		ti.item.err = err
 		SpiderServer.qerror <- ti.item
-		return
+		return ti
 	}
 
 	ti.item.htmlParse.LoadData(shop)
