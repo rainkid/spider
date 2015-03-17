@@ -111,9 +111,10 @@ func (l *Loader) GetRequest() {
 func (l *Loader) Send(data url.Values) ([]byte, error) {
 	l.data = data
 	transport := &http.Transport{
-    	ResponseHeaderTimeout:time.Duration(60 * time.Second),
+	    ResponseHeaderTimeout: time.Duration(50*time.Second),
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 	}
+	defer transport.CloseIdleConnections()
 
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
