@@ -15,7 +15,8 @@ import (
 
 type Loader struct {
 	client    *http.Client
-	request       *http.Request
+	request   *http.Request
+	transport *http.Transport
 	data      url.Values
 	redirects int64
 	rheader   http.Header
@@ -29,6 +30,10 @@ func NewLoader(url, method string) *Loader {
 	l := &Loader{
 		redirects: 0,
 		url:       url,
+		transport: &http.Transport{
+		    ResponseHeaderTimeout: time.Duration(50*time.Second),
+			TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+		},
 		useProxy:  true,
 		method:    strings.ToUpper(method),
 		mheader: map[string]string{
@@ -110,23 +115,22 @@ func (l *Loader) GetRequest() {
 
 func (l *Loader) Send(data url.Values) ([]byte, error) {
 	l.data = data
-	transport := &http.Transport{
-	    ResponseHeaderTimeout: time.Duration(50*time.Second),
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-	}
-	defer transport.CloseIdleConnections()
+	defer func() {
+		l.transport.CloseIdleConnections()
+		l.transport.CancelRequest(l.request)
+	}()
 
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
-			transport.Proxy = http.ProxyURL(proxyUrl)
+			l.transport.Proxy = http.ProxyURL(proxyUrl)
 		}
 	}
 
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
-		Transport:     transport,
+		Transport:     l.transport,
 	}
 
 	l.GetRequest()
