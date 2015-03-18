@@ -40,9 +40,9 @@ func (sp *Proxy) Daemon() {
 		for {
 			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
-			for i := 1; i < 5; i++ {
+			for i := 1; i < 3; i++ {
 				go sp.Get(i)
-//				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}

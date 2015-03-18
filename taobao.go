@@ -7,16 +7,18 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"encoding/json"
 )
 
 type Taobao struct {
 	item    *Item
 	content []byte
+	json map[string]interface{}
 }
 
 func (ti *Taobao) Item() {
 	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", ti.item.params["id"])
-
+	println(ti);
 	//get content
 	loader := NewLoader(url, "Get")
 	content, err := loader.Send(nil)
@@ -26,40 +28,75 @@ func (ti *Taobao) Item() {
 		SpiderServer.qstart <- ti.item
 		return
 	}
+    //json praise
+	if  err := json.Unmarshal(content, &ti.json); err != nil {
+		panic(err)
+	}
 
-	ti.content = bytes.Replace(content, []byte(`\"`), []byte(`"`), -1)
-	if ti.GetItemTitle().CheckError() {
+	if ti.CheckResponse().CheckError() {
 		return
 	}
+
+	if ti.GetBasicInfo().CheckError() {
+		return
+	}
+
 	//check price
 	if ti.GetItemPrice().CheckError() {
 		return
 	}
-	if ti.GetItemImg().CheckError() {
-		return
-	}
+
 	// fmt.Println(ti.item.data)
 	SpiderServer.qfinish <- ti.item
 }
 
-func (ti *Taobao) GetItemTitle() *Taobao {
+func (ti *Taobao) CheckResponse() * Taobao{
+
+	tmp := ti.json["ret"].([]interface{})
+	ret := tmp[0].(string)
+	println(ret)
+	if ret =="ERRCODE_QUERY_DETAIL_FAIL::宝贝不存在" {
+		ti.item.err = errors.New(`goods not found`)
+		return ti;
+	}
+	return ti;
+}
+
+
+func (ti *Taobao) GetBasicInfo() *Taobao {
+
+	data := ti.json["data"].(map[string]interface{})
+	itemInfoModel :=data["itemInfoModel"].(map[string]interface{})
+
+
+	img := itemInfoModel["picsPath"].([]interface{})[0]
+	fmt.Println(img);
 	hp := NewHtmlParse().LoadData(ti.content)
+
+
+	fmt.Println(itemInfoModel["title"])
+
+
 	title := hp.Partten(`(?U)"itemId":"\d+","title":"(.*)"`).FindStringSubmatch()
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
 		return ti
 	}
-	ti.item.data["title"] = fmt.Sprintf("%s", title[1])
+
+	ti.item.data["title"] = fmt.Sprintf("%s", itemInfoModel["title"])
 
 	favcount := hp.Partten(`(?U)"favcount":"(\d+)"`).FindStringSubmatch()
+
 	if favcount == nil {
 		ti.item.err = errors.New(`get favcount error`)
 		return ti
 	}
+
 	ti.item.data["favcount"] = fmt.Sprintf("%s", favcount[1])
 
 	totalSoldQuantity := hp.Partten(`(?U)"totalSoldQuantity":"(\d+)"`).FindStringSubmatch()
+
 	if totalSoldQuantity == nil {
 		ti.item.err = errors.New(`get totalSoldQuantity error`)
 		return ti
@@ -72,6 +109,9 @@ func (ti *Taobao) GetItemTitle() *Taobao {
 		return ti
 	}
 	ti.item.data["goodRatePercentage"] = fmt.Sprintf("%s", goodRatePercentage[1])
+
+
+//	ti.item.data["img"] = fmt.Sprintf("%s", itemInfoModel["picsPath"][0])
 
 	return ti
 }
@@ -97,18 +137,6 @@ func (ti *Taobao) GetItemPrice() *Taobao {
 	}
 
 	ti.item.data["price"] = fmt.Sprintf("%.2f", iprice)
-	return ti
-}
-
-func (ti *Taobao) GetItemImg() *Taobao {
-	hp := NewHtmlParse().LoadData(ti.content)
-	img := hp.Partten(`(?U)"picsPath":\["(.*)"`).FindStringSubmatch()
-
-	if img == nil {
-		ti.item.err = errors.New(`get img error`)
-		return ti
-	}
-	ti.item.data["img"] = fmt.Sprintf("%s", img[1])
 	return ti
 }
 
