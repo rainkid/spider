@@ -112,13 +112,15 @@ func (l *Loader) GetRequest() {
 	return
 }
 
+func (l *Loader) Close() {
+	l.transport.CloseIdleConnections()
+	l.transport.CancelRequest(l.request)
+	return
+}
+
 
 func (l *Loader) Send(data url.Values) ([]byte, error) {
 	l.data = data
-	defer func() {
-		l.transport.CloseIdleConnections()
-		l.transport.CancelRequest(l.request)
-	}()
 
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()

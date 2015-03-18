@@ -96,12 +96,14 @@ func (spider *Spider) Error(item *Item) {
 			SpiderServer.qstart<-item
 			return
 		}
-		item = nil
+		item.loader.Close()
 	}
 	return
 }
 
 func (spider *Spider) Finish(item *Item) {
+	defer item.loader.Close()
+	
 	output, err := json.Marshal(item.data)
 	if err != nil {
 		SpiderLoger.E("error with json output")
@@ -119,7 +121,6 @@ func (spider *Spider) Finish(item *Item) {
 		return
 	}
 	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
-	item = nil
 	return
 }
 
