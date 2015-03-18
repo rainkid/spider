@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -27,17 +28,29 @@ type Loader struct {
 }
 
 func NewLoader(url, method string) *Loader {
+	transport :=  &http.Transport{
+		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+        Dial: func(netw, addr string) (net.Conn, error) { 
+            c, err := net.DialTimeout(netw, addr, time.Second*10) 
+            if err != nil { 
+                SpiderLoger.E("http transport dail timeout", err) 
+                return nil, err 
+            } 
+            return c, nil 
+        }, 
+        MaxIdleConnsPerHost:10, 
+        ResponseHeaderTimeout: time.Second * 10, 
+    }
+
 	l := &Loader{
 		redirects: 0,
 		url:       url,
-		transport: &http.Transport{
-		    ResponseHeaderTimeout: time.Duration(50*time.Second),
-			TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-		},
+		transport: transport,
 		useProxy:  true,
 		method:    strings.ToUpper(method),
 		mheader: map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
+			"Connection":"close",
 		},
 	}
 	l.MobildAgent()
