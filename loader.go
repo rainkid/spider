@@ -31,7 +31,7 @@ func NewLoader(url, method string) *Loader {
 	transport :=  &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
         Dial: func(netw, addr string) (net.Conn, error) { 
-            c, err := net.DialTimeout(netw, addr, time.Second*10) 
+            c, err := net.DialTimeout(netw, addr, time.Second*2) 
             if err != nil { 
                 SpiderLoger.E("http transport dail timeout", err) 
                 return nil, err 
