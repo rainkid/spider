@@ -8,14 +8,16 @@ import (
 	utils "libs/utils"
 	"net/http"
 	"net/url"
+	"time"
+	"net"
 	"strconv"
 	"strings"
 )
 
 type Loader struct {
 	client    *http.Client
-	req       *http.Request
-	resp      *http.Response
+	request   *http.Request
+	transport *http.Transport
 	data      url.Values
 	redirects int64
 	rheader   http.Header
@@ -26,13 +28,29 @@ type Loader struct {
 }
 
 func NewLoader(url, method string) *Loader {
+	transport :=  &http.Transport{
+		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+        Dial: func(netw, addr string) (net.Conn, error) { 
+            c, err := net.DialTimeout(netw, addr, time.Second*2) 
+            if err != nil { 
+                SpiderLoger.E("http transport dail timeout", err) 
+                return nil, err 
+            } 
+            return c, nil 
+        }, 
+        MaxIdleConnsPerHost:10, 
+        ResponseHeaderTimeout: time.Second * 10, 
+    }
+
 	l := &Loader{
 		redirects: 0,
 		url:       url,
+		transport: transport,
 		useProxy:  true,
 		method:    strings.ToUpper(method),
 		mheader: map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
+			"Connection":"close",
 		},
 	}
 	l.MobildAgent()
@@ -72,8 +90,8 @@ func (l *Loader) WithPcAgent() *Loader {
 }
 
 func (l *Loader) CheckRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 20 {
-		return errors.New("stopped after 20 redirects")
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
 	}
 	l.redirects++
 	return nil
@@ -85,6 +103,7 @@ func (l *Loader) Sample() ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -93,96 +112,74 @@ func (l *Loader) Sample() ([]byte, error) {
 	return body, nil
 }
 
-func (l *Loader) GetResp() (*http.Response, error) {
+func (l *Loader) GetRequest() {
 	if l.method == "POST" {
-		l.req, _ = http.NewRequest(l.method, l.url, strings.NewReader(l.data.Encode()))
+		l.request, _ = http.NewRequest(l.method, l.url, strings.NewReader(l.data.Encode()))
 	} else {
-		l.req, _ = http.NewRequest(l.method, l.url, nil)
+		l.request, _ = http.NewRequest(l.method, l.url, nil)
 	}
-	l.req.Close = true
+	l.request.Close = true
 
 	//set headers
 	l.header()
-	return l.client.Do(l.req)
-}
-//测试代理可用
-func (l *Loader) Dial(host string,port string) (error) {
-	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", host, port))
-
-
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-	}
-	transport.Proxy = http.ProxyURL(proxyUrl)
-	l.client = &http.Client{
-		CheckRedirect: l.CheckRedirect,
-		Transport:     transport,
-	}
-	resp, err := l.GetResp()
-	if err != nil {
-		return  err
-	}
-//	px := fmt.Sprintf("with proxy [%s]",proxyUrl.String());
-//	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
-	if resp.StatusCode != 200{
-		return err
-	}else{
-		return nil
-	}
-
+	return
 }
 
-func (l *Loader) Send(v url.Values) ([]byte, error) {
-	l.data = v
-	px := "";
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-	}
+func (l *Loader) Close() {
+	l.transport.CloseIdleConnections()
+	l.transport.CancelRequest(l.request)
+	return
+}
+
+
+func (l *Loader) Send(data url.Values) ([]byte, error) {
+	l.data = data
 
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
-			transport.Proxy = http.ProxyURL(proxyUrl)
-			px = fmt.Sprintf("with proxy [%s]",proxyUrl.String());
+			l.transport.Proxy = http.ProxyURL(proxyUrl)
 		}
 	}
-//	SpiderLoger.D(fmt.Sprintf("Loader start with [%s] ", l.url), px)
+
 	l.client = &http.Client{
 		CheckRedirect: l.CheckRedirect,
-		Transport:     transport,
+		Transport:     l.transport,
 	}
 
-	resp, err := l.GetResp()
-	if err != nil || resp.StatusCode != 200{
+	l.GetRequest()
+	resp, err := l.client.Do(l.request)
+	if err != nil{
 		return nil, err
 	}
-	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] %s", resp.StatusCode, l.url, px))
-	l.resp = resp
+	defer resp.Body.Close()
 
-	defer l.resp.Body.Close()
-	body, err := ioutil.ReadAll(l.resp.Body)
+	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy.", resp.StatusCode, l.url))
+
+	if resp.StatusCode != 200 {
+		return nil, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	l.rheader = l.resp.Header
+	l.rheader = resp.Header
 	return body, nil
 }
 
-func (l *Loader) GetHeader() http.Header {
-	return l.rheader
-}
 
 func (l *Loader) SetHeader(key, value string) {
 	l.mheader[key] = value
 }
 
 func (l *Loader) header() {
-	l.req.Close = true
+	l.request.Close = true
 	if l.method == "POST" {
-		l.req.Header.Add("Content-Length", strconv.Itoa(len(l.data.Encode())))
+		l.request.Header.Add("Content-Length", strconv.Itoa(len(l.data.Encode())))
 	}
 	for h, v := range l.mheader {
-		l.req.Header.Set(h, v)
+		l.request.Header.Set(h, v)
 	}
 }

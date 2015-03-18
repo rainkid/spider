@@ -88,8 +88,8 @@ func (hp *HtmlParse) Convert() *HtmlParse {
 		return hp
 	}
 	defer cd.Close()
-
-	hp.content = []byte(cd.ConvString(fmt.Sprintf("%s", hp.content)))
+	data := fmt.Sprintf("%s", hp.content);
+	hp.content = []byte(cd.ConvString(data))
 	return hp
 }
 

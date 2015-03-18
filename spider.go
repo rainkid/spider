@@ -3,21 +3,13 @@ package spider
 import (
 	"encoding/json"
 	"fmt"
-	utils "libs/utils"
 	"net/url"
 )
 
 var (
 	SpiderServer *Spider
-	spiderErrors *SpiderErrors = &SpiderErrors{}
 	SpiderLoger  *MyLoger      = NewMyLoger()
-	TryTime                    = 10
 )
-
-type SpiderErrors struct {
-	errorStr   string
-	errorTotal int
-}
 
 type Spider struct {
 	qstart  chan *Item
@@ -26,6 +18,8 @@ type Spider struct {
 }
 
 type Item struct {
+	loader *Loader
+	htmlParse *HtmlParse
 	params   map[string]string
 	data     map[string]interface{}
 	tag      string
@@ -49,10 +43,6 @@ func Start() *Spider {
 		SpiderServer.Daemon()
 	}
 	return SpiderServer
-}
-
-func SendMail(title, content string) error {
-	return utils.SendMail("rainkid@163.com", "Rainkid,.0.", "smtp.163.com:25", "liaohu@gionee.com", title, content, "html")
 }
 
 func (spider *Spider) Do(item *Item) {
@@ -100,24 +90,20 @@ func (spider *Spider) Do(item *Item) {
 
 func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
-		sbody := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
-		if spiderErrors.errorTotal == 10 {
-			err := SendMail("spider load data error.", spiderErrors.errorStr)
-			if err != nil {
-				SpiderLoger.E("send mail fail.")
-			}
-			spiderErrors.errorTotal = 0
-			spiderErrors.errorStr = ""
+		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
+		SpiderLoger.E(err)
+		if item.tryTimes < 10 {
+			SpiderServer.qstart<-item
+			return
 		}
-		spiderErrors.errorStr += sbody + "\r\n"
-		spiderErrors.errorTotal++
-		SpiderLoger.E(sbody)
-		item.err = nil
+		item.loader.Close()
 	}
 	return
 }
 
 func (spider *Spider) Finish(item *Item) {
+	defer item.loader.Close()
+	
 	output, err := json.Marshal(item.data)
 	if err != nil {
 		SpiderLoger.E("error with json output")
@@ -140,6 +126,7 @@ func (spider *Spider) Finish(item *Item) {
 
 func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
+		htmlParse: NewHtmlParse(),
 		tag:      tag,
 		params:   params,
 		tryTimes: 0,
@@ -147,6 +134,7 @@ func (spider *Spider) Add(tag string, params map[string]string) {
 		err:      nil,
 	}
 	spider.qstart <- item
+	return
 }
 
 func (spider *Spider) Daemon() {

@@ -40,9 +40,8 @@ func (sp *Proxy) Daemon() {
 		for {
 			SpiderLoger.I("Proxy start new runtime")
 			proxyNum = 0
-			for i := 1; i < 3; i++ {
-				go sp.Get(i)
-				go sp.Load(fmt.Sprintf("http://proxy.com.ru/niming/list_%d.html", i))
+			for i := 1; i < 5; i++ {
+				go sp.Load(fmt.Sprintf("http://proxy.com.ru/list_%d.html", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
@@ -63,49 +62,6 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 }
 
 
-func (sp *Proxy) Get(page int){
-	proxyUrl := fmt.Sprintf("http://www.kuaidaili.com/proxylist/%d/", page);
-	loader := NewLoader(proxyUrl, "GET").WithPcAgent().WithProxy(false)
-	content, err := loader.Send(nil)
-	if err != nil {
-		SpiderLoger.E("Load proxy error with", proxyUrl)
-		return
-	}
-	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
-	trs := hp.Partten(`(?U)<tr> <td>(\d+\.\d+\.\d+\.\d+)</td> <td>(\d+)</td> <td>`).FindAllSubmatch()
-	l := len(trs)
-	if l == 0 {
-		SendMail("Load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
-		return
-	}
-	if proxyNum == 0 {
-		sp.Servers = make(map[int]*ProxyServerInfo)
-	}
-	for i := 0; i < l; i++ {
-		ip, port := string(trs[i][1]), string(trs[i][2])
-		loader := NewLoader("http://www.baidu.com/robots.txt", "GET").WithPcAgent().WithProxy(true)
-		err := loader.Dial(ip,port)
-		if err != nil {
-			continue
-		}
-
-		pr := &PingResult{}
-		err = Ping(pr, ip, port)
-		if err != nil {
-//			SpiderLoger.W("Ping error", err.Error())
-			continue
-		}
-		if pr.LostRate == 0 && pr.Average < 500 {
-			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
-			proxyNum++
-		}
-	}
-	if proxyNum <= 5 {
-		SendMail("Proxy server less then 5", fmt.Sprintf("spider have %d proxy servers only", proxyNum))
-	}
-	SpiderLoger.I("The proxy server count", proxyNum)
-	return
-}
 
 func (sp *Proxy) Load(proxyUrl string) {
 
@@ -119,7 +75,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
-		SendMail("Load proxy data error.", "load proxy data from "+proxyUrl+" error. ")
+		SpiderLoger.E("load proxy data from "+proxyUrl+" error. ")
 		return
 	}
 	if proxyNum == 0 {
@@ -139,7 +95,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		}
 	}
 	if proxyNum <= 5 {
-		SendMail("Proxy server less then 5", fmt.Sprintf("spider have %d proxy servers only", proxyNum))
+		SpiderLoger.E("spider have %d proxy servers only", proxyNum)
 	}
 	SpiderLoger.I("The proxy server count", proxyNum)
 	return

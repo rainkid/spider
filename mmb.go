@@ -15,18 +15,17 @@ func (ti *MMB) Item() {
 	url := fmt.Sprintf("http://mmb.cn/wap/touch/html/product/id_%s.htm", ti.item.params["id"])
 
 	//get content
-	loader := NewLoader(url, "Get")
-	content, err := loader.Send(nil)
+	ti.item.loader = NewLoader(url, "Get")
+	content, err := ti.item.loader.Send(nil)
 
-	if err != nil && ti.item.tryTimes < 3 {
+	if err != nil {
 		ti.item.err = err
-		SpiderServer.qstart <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
-	hp := NewHtmlParse()
-	hp = hp.LoadData(content).Replace()
-	ti.content = hp.content
+	ti.item.htmlParse.LoadData(content).Replace()
+	ti.content = ti.item.htmlParse.content
 	// ti.content = fmt.Sprintf("%s", content)
 	//get title and check
 	if ti.GetItemTitle().CheckError() {
@@ -40,11 +39,12 @@ func (ti *MMB) Item() {
 		return
 	}
 	SpiderServer.qfinish <- ti.item
+	return
 }
 
 func (ti *MMB) GetItemTitle() *MMB {
-	hp := NewHtmlParse().LoadData(ti.content)
-	title := hp.FindByTagName("title")
+	ti.item.htmlParse.LoadData(ti.content)
+	title := ti.item.htmlParse.FindByTagName("title")
 
 	if title == nil {
 		ti.item.err = errors.New(`get title error`)
@@ -55,12 +55,12 @@ func (ti *MMB) GetItemTitle() *MMB {
 }
 
 func (ti *MMB) GetItemPrice() *MMB {
-	hp := NewHtmlParse().LoadData(ti.content)
+	ti.item.htmlParse.LoadData(ti.content)
 	// fmt.Println(fmt.Sprintf("%s", hp.content))
-	price := hp.Partten(`(?U)￥.*(\d+\.\d+)`).FindStringSubmatch()
+	price := ti.item.htmlParse.Partten(`(?U)￥.*(\d+\.\d+)`).FindStringSubmatch()
 
 	if price == nil {
-		price = hp.Partten(`(?U)￥<em>(.*)</em>`).FindStringSubmatch()
+		price = ti.item.htmlParse.Partten(`(?U)￥<em>(.*)</em>`).FindStringSubmatch()
 	}
 	if price == nil {
 		ti.item.err = errors.New(`get price error`)
@@ -72,11 +72,8 @@ func (ti *MMB) GetItemPrice() *MMB {
 }
 
 func (ti *MMB) GetItemImg() *MMB {
-	hp := NewHtmlParse().LoadData(ti.content)
-	img := hp.Partten(`(?U)"(http://rep.mmb.cn/wap/upload/productImage/+.*)"`).FindStringSubmatch()
-	if img == nil {
-		img = hp.Partten(`(?U)"(.*/wap/upload/productImage/+.*)"`).FindStringSubmatch()
-	}
+	ti.item.htmlParse.LoadData(ti.content)
+	img := ti.item.htmlParse.Partten(`(?U)data-original="(.*)"`).FindStringSubmatch()
 	if img == nil {
 		ti.item.err = errors.New(`get img error`)
 		return ti
