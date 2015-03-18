@@ -73,10 +73,7 @@ func (ti *MMB) GetItemPrice() *MMB {
 
 func (ti *MMB) GetItemImg() *MMB {
 	ti.item.htmlParse.LoadData(ti.content)
-	img := ti.item.htmlParse.Partten(`(?U)"(http://rep.mmb.cn/wap/upload/productImage/+.*)"`).FindStringSubmatch()
-	if img == nil {
-		img = ti.item.htmlParse.Partten(`(?U)"(.*/wap/upload/productImage/+.*)"`).FindStringSubmatch()
-	}
+	img := ti.item.htmlParse.Partten(`(?U)data-original="(.*)"`).FindStringSubmatch()
 	if img == nil {
 		ti.item.err = errors.New(`get img error`)
 		return ti
