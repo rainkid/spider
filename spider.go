@@ -23,6 +23,7 @@ type Item struct {
 	params   map[string]string
 	data     map[string]interface{}
 	tag      string
+	method   string
 	tryTimes int
 	err      error
 }
@@ -92,7 +93,7 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		SpiderLoger.E(err)
-		if item.tryTimes < 10 {
+		if item.tryTimes < 2 {
 			SpiderServer.qstart<-item
 			return
 		}
@@ -112,6 +113,10 @@ func (spider *Spider) Finish(item *Item) {
 	v := url.Values{}
 	v.Add("id", item.params["id"])
 	v.Add("data", fmt.Sprintf("%s", output))
+	if item.method=="" {
+
+	}
+	v.Add("method", fmt.Sprintf("%s", item.method))
 	SpiderLoger.D(v)
 	url, _ := url.QueryUnescape(item.params["callback"])
 	loader := NewLoader(url, "Post").WithProxy(false)
