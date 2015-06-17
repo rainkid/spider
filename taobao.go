@@ -351,7 +351,6 @@ func (ti *Taobao) SameStyle() {
 		}
 
 		data["sortScore"] = fmt.Sprintf("%d", sortScore)
-		fmt.Println(data)
 		result = append(result, data)
 		if len(result) == 5 {
 			break
