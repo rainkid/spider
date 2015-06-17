@@ -2,8 +2,8 @@ package spider
 
 import (
 	"fmt"
+	utils "libs/utils"
 	"time"
-	"libs/utils"
 )
 
 type ProxyServerInfo struct {
