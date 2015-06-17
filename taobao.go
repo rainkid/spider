@@ -226,8 +226,8 @@ func (ti *Taobao) SameStyle() {
 		return
 	}
 
-	hp := ti.item.htmlParse.LoadData(content).Replace().Convert()
-	ret := hp.FindByAttr("div", "class", "row item icon-datalink")
+	hp := ti.item.htmlParse.LoadData(content).Replace()
+	ret := hp.Partten(`(?U)"nid".*"pid_info"`).FindAllSubmatch()
 
 	l := len(ret) - 1
 	if l <= 0 {
@@ -242,7 +242,8 @@ func (ti *Taobao) SameStyle() {
 		uniquePricesArr []float64
 		pricesMap       map[float64]bool = make(map[float64]bool)
 	)
-	prices := hp.Partten(`(?U)<i>￥</i>(.*)</span>`).FindAllSubmatch()
+	prices := hp.Partten(`(?U)"view_price":"(.*)"`).FindAllSubmatch()
+
 	if len(prices) == 0 {
 		return
 	}
@@ -268,13 +269,13 @@ func (ti *Taobao) SameStyle() {
 	for i := 1; i < l; i++ {
 		var sortScore = lret - i
 		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0", "express": "0.00"}
-		val := ret[i][1]
+		val := ret[i][0]
 		hp1 := ti.item.htmlParse.LoadData(val)
 
-		id := hp1.Partten(`(?U)data-item="(\d+)"`).FindStringSubmatch()
+		id := hp1.Partten(`(?U)"nid":"(\d+)"`).FindStringSubmatch()
 		data["id"] = fmt.Sprintf("%s", id[1])
 
-		score := hp1.Partten(`(?U)<span class="feature-dsr-num">(.*)</span>`).FindStringSubmatch()
+		score := hp1.Partten(`(?U)"dsr_scores":\["(.*)","(.*)","(.*)"\]`).FindStringSubmatch()
 		if score != nil {
 			data["score"] = fmt.Sprintf("%s", score[1])
 		}
@@ -285,7 +286,7 @@ func (ti *Taobao) SameStyle() {
 			continue
 		}
 
-		pay_num := hp1.Partten(`(?U)(\d+) 人付款`).FindStringSubmatch()
+		pay_num := hp1.Partten(`(?U)"view_sales":"(\d+).*"`).FindStringSubmatch()
 		if pay_num != nil {
 			data["pay_num"] = fmt.Sprintf("%s", pay_num[1])
 		}
@@ -296,7 +297,7 @@ func (ti *Taobao) SameStyle() {
 			continue
 		}
 
-		price := hp1.Partten(`(?U)<i>￥</i>(.*)</span>`).FindStringSubmatch()
+		price := hp1.Partten(`(?U)"reserve_price":"(.*)"`).FindStringSubmatch()
 		data["price"] = fmt.Sprintf("%s", price[1])
 		//价格低于平均价格30%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
@@ -308,28 +309,28 @@ func (ti *Taobao) SameStyle() {
 		pos := sort.SearchFloat64s(uniquePricesArr, p2)
 		sortScore += (10 - pos)
 
-		imgs := hp1.Partten(`(?U)data-ks-lazyload="(.*)"`).FindStringSubmatch()
+		imgs := hp1.Partten(`(?U)"pic_url":"(.*)"`).FindStringSubmatch()
 		if imgs != nil {
 			data["img"] = fmt.Sprintf("%s", imgs[1])
 		}
 
-		title := hp1.Partten(`(?U)title="(.*)">`).FindStringSubmatch()
+		title := hp1.Partten(`(?U)"title":"(.*)"`).FindStringSubmatch()
 		if title != nil {
 			data["title"] = fmt.Sprintf("%s", title[1])
 		}
 
-		area := hp1.Partten(`(?U)<div class="seller-loc">(.*)</div>`).FindStringSubmatch()
+		area := hp1.Partten(`(?U)"item_loc":"(.*)"`).FindStringSubmatch()
 		if area != nil {
 			data["area"] = fmt.Sprintf("%s", area[1])
 		}
 
-		istmall := bytes.Index(val, []byte(`icon-service-tianmao-large`))
+		istmall := bytes.Index(val, []byte(`detail.tmall.com`))
 		if istmall > 0 {
 			data["channel"] = "tmall"
 			sortScore += 1
 		}
 
-		shop_title := hp1.Partten(`(?U)<a class="feature-dsc-tgr popup-tgr" trace="srpwwnick" target="_blank" href=".*"> (.*) </a>`).FindStringSubmatch()
+		shop_title := hp1.Partten(`(?U)"nick":"(.*)"`).FindStringSubmatch()
 		if shop_title != nil {
 			data["shop_title"] = fmt.Sprintf("%s", shop_title[1])
 		}
@@ -339,18 +340,18 @@ func (ti *Taobao) SameStyle() {
 			data["shop_level"] = fmt.Sprintf("%d-%s", len(shop_level), shop_level[0][1])
 		}
 
-		express := hp1.Partten(`(?U)<div class="shipping">(.*)</div>`).FindStringSubmatch()
+		express := hp1.Partten(`(?U)"view_fee":"(.*)"`).FindStringSubmatch()
 		if express != nil {
 			data["express"] = fmt.Sprintf("%s", express[1])
 		}
 
-		comment_num := hp1.Partten(`(?U)(\d+) 条评论`).FindStringSubmatch()
+		comment_num := hp1.Partten(`(?U)"comment_count":"(\d+)"`).FindStringSubmatch()
 		if comment_num != nil {
 			data["comment_num"] = fmt.Sprintf("%s", comment_num[1])
 		}
 
 		data["sortScore"] = fmt.Sprintf("%d", sortScore)
-
+		fmt.Println(data)
 		result = append(result, data)
 		if len(result) == 5 {
 			break
