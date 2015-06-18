@@ -30,14 +30,16 @@ func (ti *Taobao) Item() {
 	}
 	//json praise
 	if  err := json.Unmarshal(content, &ti.json); err != nil {
-		panic(err)
+		ti.item.err = err
+		SpiderServer.qerror <- ti.item
+		return
 	}
 
 	_,err = ti.CheckResponse()
 
 	if err != nil {
 		ti.item.err = err
-		SpiderServer.qfinish <- ti.item
+		SpiderServer.qerror <- ti.item
 		return
 	}
 
@@ -290,10 +292,10 @@ func (ti *Taobao) SameStyle() {
 		if score != nil {
 			data["score"] = fmt.Sprintf("%s", score[1])
 		}
-		//评分低于4.8分的
+		//评分低于4.7分的
 		p1, _ := strconv.ParseFloat(data["score"], 64)
-		if p1 < 4.8 {
-			// SpiderLoger.D(data["id"], "score lesslen 4.8")
+		if p1 < 4.7 {
+			// SpiderLoger.D(data["id"], "score lesslen 4.7")
 			continue
 		}
 
@@ -310,10 +312,10 @@ func (ti *Taobao) SameStyle() {
 
 		price := hp1.Partten(`(?U)"reserve_price":"(.*)"`).FindStringSubmatch()
 		data["price"] = fmt.Sprintf("%s", price[1])
-		//价格低于平均价格30%
+		//价格低于平均价格40%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
-		if p2 < avgPrice*0.3 {
-			// SpiderLoger.D(data["id"], "price len aveprice off 30%")
+		if p2 < avgPrice*0.4 {
+			// SpiderLoger.D(data["id"], "price len aveprice off 40%")
 			continue
 		}
 		//价格按低到高，加分10递减
