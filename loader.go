@@ -31,17 +31,15 @@ func NewLoader(url, method string) *Loader {
 	transport :=  &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 		Dial: func(netw, addr string) (net.Conn, error) { 
-			deadline := time.Now().Add(30 * time.Second)
-			c, err := net.DialTimeout(netw, addr, time.Second*30) 
+			deadline := time.Now().Add(10 * time.Second)
+			c, err := net.DialTimeout(netw, addr, time.Second*10) 
 			if err != nil { 
 				SpiderLoger.E("http transport dail timeout", err) 
 		 		return nil, err 
 			} 
 			c.SetDeadline(deadline)
 		    	return c, nil 
-		}, 
-		MaxIdleConnsPerHost:10, 
-		ResponseHeaderTimeout: time.Second * 30, 
+		}
 	}
 
 	l := &Loader{
