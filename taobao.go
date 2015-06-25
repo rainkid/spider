@@ -77,7 +77,9 @@ func (ti *Taobao) GetBasicInfo() *Taobao {
 	var api_stack map[string]interface {}
 	stack_data:= []byte(apiStack.(string))
 	if  err := json.Unmarshal(stack_data, &api_stack); err != nil {
-		panic(err)
+		ti.item.err = err
+		SpiderServer.qerror <- ti.item
+		return ti
 	}
 
 	info := api_stack["data"].(map[string]interface {})["itemInfoModel"].(map[string]interface {})
