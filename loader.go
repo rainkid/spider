@@ -39,7 +39,7 @@ func NewLoader(url, method string) *Loader {
 			} 
 			c.SetDeadline(deadline)
 		    	return c, nil 
-		}
+		},
 	}
 
 	l := &Loader{
