@@ -3,12 +3,13 @@ package spider
 import (
 	"bytes"
 	"fmt"
-	iconv "github.com/djimenez/iconv-go"
+	iconv "github.com/qiniu/iconv"
 	"regexp"
 )
 
 type HtmlParse struct {
 	url      string
+	convd     *iconv.Iconv
 	content  []byte
 	partten  string
 	replaces [][]string
@@ -43,6 +44,7 @@ func NewHtmlParse() *HtmlParse {
 			// {`on([a-z]+)\s*="(.*?)"`, ""},                 //过滤dom事件
 			// {`on([a-z]+)\s*='(.*?)'`, ""},
 		},
+		convd:
 	}
 }
 
@@ -82,13 +84,14 @@ func (hp *HtmlParse) IsGbk() bool {
 }
 
 func (hp *HtmlParse) Convert() *HtmlParse {
-	data := fmt.Sprintf("%s", hp.content);
-	output,err := iconv.ConvertString(data, "utf-8", "windows-1252")
+	cd, err := iconv.Open("UTF-8//IGNORE", "GB2312")
 	if err != nil {
 		SpiderLoger.E("iconv.Open failed!")
 		return hp
 	}
-	hp.content = []byte(output)
+	defer cd.Close()
+	data := fmt.Sprintf("%s", hp.content);
+	hp.content = []byte(cd.ConvString(data))
 	return hp
 }
 
