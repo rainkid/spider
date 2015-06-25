@@ -28,6 +28,12 @@ type Item struct {
 	err      error
 }
 
+func (item *Item) Close() {
+	item.loader.Close()
+	item.htmlParse = nil
+	item = nil
+}
+
 func NewSpider() *Spider {
 	SpiderServer = &Spider{
 		qstart:  make(chan *Item),
@@ -97,13 +103,12 @@ func (spider *Spider) Error(item *Item) {
 			SpiderServer.qstart<-item
 			return
 		}
-		item.loader.Close()
 	}
+	item.Close()
 	return
 }
 
 func (spider *Spider) Finish(item *Item) {
-	defer item.loader.Close()
 	
 	output, err := json.Marshal(item.data)
 	if err != nil {
@@ -126,6 +131,7 @@ func (spider *Spider) Finish(item *Item) {
 		return
 	}
 	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
+	item.Close()
 	return
 }
 
