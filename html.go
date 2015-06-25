@@ -9,7 +9,6 @@ import (
 
 type HtmlParse struct {
 	url      string
-	convd     *iconv.Iconv
 	content  []byte
 	partten  string
 	replaces [][]string
@@ -44,7 +43,6 @@ func NewHtmlParse() *HtmlParse {
 			// {`on([a-z]+)\s*="(.*?)"`, ""},                 //过滤dom事件
 			// {`on([a-z]+)\s*='(.*?)'`, ""},
 		},
-		convd:
 	}
 }
 
