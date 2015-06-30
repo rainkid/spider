@@ -41,6 +41,8 @@ func NewLoader() *Loader {
 			"Connection":"close",
 		},
 	}
+	defer l.Close()
+
 	time.AfterFunc(time.Duration(30)*time.Second, func() {
 		defer func() {
 			SpiderLoger.E("probably request is nil")
@@ -48,7 +50,6 @@ func NewLoader() *Loader {
 		}()
 		l.Close()
 	})
-	defer l.Close()
 	l.MobildAgent()
 	return l
 }
