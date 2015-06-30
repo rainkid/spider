@@ -7,52 +7,55 @@ import (
 	"regexp"
 )
 
-type HtmlParse struct {
+type htmlParser struct {
+	reg *regexp.Regexp
 	url      string
 	content  []byte
 	partten  string
-	replaces [][]string
+	replaces map[string]string
 }
 
-func NewHtmlParse() *HtmlParse {
-	return &HtmlParse{
-		replaces: [][]string{
-			{`\s+`, " "},           //过滤多余回车
-			{`<[ ]+`, "<"},         //过滤<__("<"号后面带空格)
-			{`<\!–.*?–>`, ""},      // //注释
-			{`<(\!.*?)>`, ""},      //过滤DOCTYPE
-			{`<(\/?html.*?)>`, ""}, //过滤html标签
-			{`<(\/?br.*?)>`, ""},   //过滤br标签
-			{`<(\/?head.*?)>`, ""}, //过滤head标签
-			// {`<(\/?meta.*?)>`, ""},                    //过滤meta标签
-			{`<(\/?body.*?)>`, ""},                    //过滤body标签
-			{`<(\/?link.*?)>`, ""},                    //过滤link标签
-			{`<(\/?form.*?)>`, ""},                    //过滤form标签
-			{`<(applet.*?)>(.*?)<(\/applet.*?)>`, ""}, //过滤applet标签
-			{`<(\/?applet.*?)>`, ""},
-			{`<(style.*?)>(.*?)<(\/style.*?)>`, ""}, //过滤style标签
-			{`<(\/?style.*?)>`, ""},
-			// {`<(title.*?)>(.*?)<(\/title.*?)>`, ""}, //过滤title标签
-			// {`<(\/?title.*?)>`, ""},
-			{`<(object.*?)>(.*?)<(\/object.*?)>`, ""}, //过滤object标签
-			{`<(\/?objec.*?)>`, ""},
-			{`<(noframes.*?)>(.*?)<(\/noframes.*?)>`, ""}, //过滤noframes标签
-			{`<(\/?noframes.*?)>`, ""},
-			{`<(i?frame.*?)>(.*?)<(\/i?frame.*?)>`, ""},   //过滤frame标签
-			{`<(noscript.*?)>(.*?)<(\/noscript.*?)>`, ""}, //过滤noframes标签
-			// {`on([a-z]+)\s*="(.*?)"`, ""},                 //过滤dom事件
-			// {`on([a-z]+)\s*='(.*?)'`, ""},
+func NewHtmlParser() *htmlParser {
+	htmlParser := &htmlParser{
+		replaces: map[string]string{
+			`\s+`: " ",           //过滤多余回车
+			`<[ ]+`: "<",         //过滤<__("<"号后面带空格)
+			`<\!–.*?–>`: "",      // //注释
+			`<(\!.*?)>`: "",      //过滤DOCTYPE
+			`<(\/?html.*?)>`: "", //过滤html标签
+			`<(\/?br.*?)>`: "",   //过滤br标签
+			`<(\/?head.*?)>`: "", //过滤head标签
+			// `<(\/?meta.*?)>`: "",                    //过滤meta标签
+			`<(\/?body.*?)>`: "",                    //过滤body标签
+			`<(\/?link.*?)>`: "",                    //过滤link标签
+			`<(\/?form.*?)>`: "",                    //过滤form标签
+			`<(applet.*?)>(.*?)<(\/applet.*?)>`: "", //过滤applet标签
+			`<(\/?applet.*?)>`: "",
+			`<(style.*?)>(.*?)<(\/style.*?)>`: "", //过滤style标签
+			`<(\/?style.*?)>`: "",
+			// `<(title.*?)>(.*?)<(\/title.*?)>`: "", //过滤title标签
+			// `<(\/?title.*?)>`: "",
+			`<(object.*?)>(.*?)<(\/object.*?)>`: "", //过滤object标签
+			`<(\/?objec.*?)>`: "",
+			`<(noframes.*?)>(.*?)<(\/noframes.*?)>`: "", //过滤noframes标签
+			`<(\/?noframes.*?)>`: "",
+			`<(i?frame.*?)>(.*?)<(\/i?frame.*?)>`: "",   //过滤frame标签
+			`<(noscript.*?)>(.*?)<(\/noscript.*?)>`: "", //过滤noframes标签
+			// `on([a-z]+)\s*="(.*?)"`: "",                 //过滤dom事件
+			// `on([a-z]+)\s*='(.*?)'`: "",
 		},
 	}
+	defer htmlParser.Close()
+	return htmlParser
 }
 
-func (hp *HtmlParse) CleanScript() *HtmlParse {
-	hp.replaces = append(hp.replaces, []string{`<(script.*?)>(.*?)<(\/script.*?)>`, ""})
-	hp.replaces = append(hp.replaces, []string{`<(\/?script.*?)>`, ""})
+func (hp *htmlParser) CleanScript() *htmlParser {
+	hp.replaces[`<(script.*?)>(.*?)<(\/script.*?)>`] =  ""
+	hp.replaces[`<(\/?script.*?)>`] = ""
 	return hp
 }
 
-func (hp *HtmlParse) IsGbk() bool {
+func (hp *htmlParser) IsGbk() bool {
 	d := bytes.ToLower(hp.content)
 	if bytes.Index(d, []byte(`text/html; charset=gbk`)) > 0 {
 		return true
@@ -81,82 +84,89 @@ func (hp *HtmlParse) IsGbk() bool {
 	return false
 }
 
-func (hp *HtmlParse) Convert() *HtmlParse {
+func (hp *htmlParser) Close() {
+	hp.content = nil
+}
+
+func (hp *htmlParser) Convert() *htmlParser {
 	cd, err := iconv.Open("UTF-8//IGNORE", "GB2312")
 	if err != nil {
 		SpiderLoger.E("iconv.Open failed!")
 		return hp
 	}
 	defer cd.Close()
-	data := fmt.Sprintf("%s", hp.content);
-	hp.content = []byte(cd.ConvString(data))
+	
+	cd.Conv(hp.content, hp.content)
 	return hp
 }
 
-func (hp *HtmlParse) LoadData(content []byte) *HtmlParse {
+func (hp *htmlParser) LoadData(content []byte) *htmlParser {
 	hp.content = content
 	return hp
 }
 
-func (hp *HtmlParse) Replace() *HtmlParse {
-	length := len(hp.replaces)
-	for i := 0; i < length; i++ {
-		if l := len(hp.replaces[i]); l > 0 {
-			p, r := hp.replaces[i][:1], hp.replaces[i][1:2]
-			hp.content = regexp.MustCompile(p[0]).ReplaceAll(hp.content, []byte(r[0]))
-		}
+func (hp *htmlParser) Replace() *htmlParser {
+	for p,r := range hp.replaces {
+		reg := regexp.MustCompile(p)
+		hp.content = []byte(reg.ReplaceAllLiteral(hp.content, []byte(r)))
 	}
 	return hp
 }
 
-func (hp *HtmlParse) Partten(p string) *HtmlParse {
+func (hp *htmlParser) Test() {
+	reg := regexp.MustCompile(`\s`)
+	content := []byte(reg.ReplaceAllLiteral([]byte("a adf aa"), []byte("")))
+	fmt.Println(content)
+}
+
+func (hp *htmlParser) Partten(p string) *htmlParser {
 	hp.partten = p
 	return hp
 }
 
-func (hp *HtmlParse) FindStringSubmatch() [][]byte {
-	re := regexp.MustCompile(hp.partten)
+func (hp *htmlParser) FindStringSubmatch() [][]byte {
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindSubmatch(hp.content)
+	return hp.reg.FindSubmatch(hp.content)
 }
 
-func (hp *HtmlParse) FindSubmatch(tagName string) [][]byte {
+func (hp *htmlParser) FindSubmatch(tagName string) [][]byte {
 	hp.partten = fmt.Sprintf(`((?U)<%s+.*>(.*)</%s>).*?`, tagName, tagName)
-	re := regexp.MustCompile(hp.partten)
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindSubmatch(hp.content)
+	return hp.reg.FindSubmatch(hp.content)
 }
 
-func (hp *HtmlParse) FindAllSubmatch() [][][]byte {
-	re := regexp.MustCompile(hp.partten)
+func (hp *htmlParser) FindAllSubmatch() [][][]byte {
+	hp.reg= regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindAllSubmatch(hp.content, -1)
+	return hp.reg.FindAllSubmatch(hp.content, -1)
 }
 
-func (hp *HtmlParse) FindByAttr(tagName, attr, value string) [][][]byte {
+func (hp *htmlParser) FindByAttr(tagName, attr, value string) [][][]byte {
 	hp.partten = fmt.Sprintf(`((?U)<%s+.*%s=['"]%s['"]+.*>(.*)</%s>).*?`, tagName, attr, value, tagName)
-	re := regexp.MustCompile(hp.partten)
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindAllSubmatch(hp.content, -1)
+	return hp.reg.FindAllSubmatch(hp.content, -1)
 }
 
-func (hp *HtmlParse) FindByTagName(tagName string) [][][]byte {
+func (hp *htmlParser) FindByTagName(tagName string) [][][]byte {
 	hp.partten = fmt.Sprintf(`((?U)<%s+.*>(.*)</%s>).*?`, tagName, tagName)
-	re := regexp.MustCompile(hp.partten)
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindAllSubmatch(hp.content, -1)
+	return hp.reg.FindAllSubmatch(hp.content, -1)
 }
 
-func (hp *HtmlParse) FindJsonStr(nodeName string) [][][]byte {
+func (hp *htmlParser) FindJsonStr(nodeName string) [][][]byte {
 	hp.partten = fmt.Sprintf(`(?U)"%s":\s*?['"](.*)['"]`, nodeName)
-	re := regexp.MustCompile(hp.partten)
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindAllSubmatch(hp.content, -1)
+	return hp.reg.FindAllSubmatch(hp.content, -1)
 }
 
-func (hp *HtmlParse) FindJsonInt(nodeName string) [][][]byte {
+func (hp *htmlParser) FindJsonInt(nodeName string) [][][]byte {
 	hp.partten = fmt.Sprintf(`(?U)"%s":(.*),`, nodeName)
-	re := regexp.MustCompile(hp.partten)
+	hp.reg = regexp.MustCompile(hp.partten)
 	// fmt.Println(re.String())
-	return re.FindAllSubmatch(hp.content, -1)
+	return hp.reg.FindAllSubmatch(hp.content, -1)
 }

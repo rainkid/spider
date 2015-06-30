@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"compress/gzip"
 	"io/ioutil"
 	utils "libs/utils"
 	"net/http"
@@ -19,7 +21,6 @@ type Loader struct {
 	request   *http.Request
 	transport *http.Transport
 	data      url.Values
-	redirects int64
 	rheader   http.Header
 	url       string
 	method    string
@@ -27,32 +28,33 @@ type Loader struct {
 	mheader   map[string]string
 }
 
-func NewLoader(url, method string) *Loader {
+func NewLoader() *Loader {
 	transport :=  &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
 		Dial: func(netw, addr string) (net.Conn, error) { 
-			deadline := time.Now().Add(10 * time.Second)
-			c, err := net.DialTimeout(netw, addr, time.Second*10) 
+			deadline := time.Now().Add(30 * time.Second)
+			c, err := net.DialTimeout(netw, addr, time.Second*30) 
 			if err != nil { 
 				SpiderLoger.E("http transport dail timeout", err) 
 		 		return nil, err 
 			} 
 			c.SetDeadline(deadline)
 		    	return c, nil 
-		},
+		}, 
+		// MaxIdleConnsPerHost:10, 
+		ResponseHeaderTimeout: time.Second * 30, 
 	}
 
 	l := &Loader{
-		redirects: 0,
-		url:       url,
 		transport: transport,
 		useProxy:  true,
-		method:    strings.ToUpper(method),
 		mheader: map[string]string{
+			"Accept-Encoding": "gzip, deflate",
 			"Content-Type": "application/x-www-form-urlencoded",
 			"Connection":"close",
 		},
 	}
+	defer l.Close()
 	l.MobildAgent()
 	return l
 }
@@ -93,23 +95,7 @@ func (l *Loader) CheckRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
-	l.redirects++
 	return nil
-}
-
-func (l *Loader) Sample() ([]byte, error) {
-	resp, err := http.Get(l.url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	l.rheader = resp.Header
-	return body, nil
 }
 
 func (l *Loader) GetRequest() {
@@ -126,13 +112,16 @@ func (l *Loader) GetRequest() {
 }
 
 func (l *Loader) Close() {
-	l.transport.CloseIdleConnections()
-	l.transport.CancelRequest(l.request)
+	if l.transport != nil {
+		l.transport.CloseIdleConnections()
+		l.transport.CancelRequest(l.request)
+	}
 	return
 }
 
-
-func (l *Loader) Send(data url.Values) ([]byte, error) {
+func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
+	l.url = urlStr
+	l.method = strings.ToUpper(method)
 	l.data = data
 
 	if l.useProxy {
@@ -161,14 +150,26 @@ func (l *Loader) Send(data url.Values) ([]byte, error) {
 		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	var reader io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+		case "gzip":
+			reader, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			defer reader.Close()
+		default:
+			reader = resp.Body
+	}
+
+	body := make([]byte, 1024)
+	body, err = ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
 	l.rheader = resp.Header
 	return body, nil
 }
-
 
 func (l *Loader) SetHeader(key, value string) {
 	l.mheader[key] = value

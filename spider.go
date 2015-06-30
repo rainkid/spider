@@ -18,20 +18,12 @@ type Spider struct {
 }
 
 type Item struct {
-	loader *Loader
-	htmlParse *HtmlParse
 	params   map[string]string
 	data     map[string]interface{}
 	tag      string
 	method   string
 	tryTimes int
 	err      error
-}
-
-func (item *Item) Close() {
-	item.loader.Close()
-	item.htmlParse = nil
-	item = nil
 }
 
 func NewSpider() *Spider {
@@ -57,39 +49,39 @@ func (spider *Spider) Do(item *Item) {
 	SpiderLoger.I(fmt.Sprintf("tag: <%s>, params: %v try with (%d) times.", item.tag, item.params, item.tryTimes))
 	switch item.tag {
 	case "TmallItem":
-		ti := &Tmall{item: item}
-		go ti.Item()
+		tmall := &Tmall{}
+		go tmall.Item(item)
 		break
 	case "TaobaoItem":
-		ti := &Taobao{item: item}
-		go ti.Item()
+		taobao := &Taobao{}
+		go taobao.Item(item)
 		break
 	case "JdItem":
-		ti := &Jd{item: item}
-		go ti.Item()
+		jd:= &Jd{}
+		go jd.Item(item)
 		break
 	case "MmbItem":
-		ti := &MMB{item: item}
-		go ti.Item()
+		mmb := &MMB{}
+		go mmb.Item(item)
 		break
 	case "TmallShop":
-		ti := &Tmall{item: item}
-		go ti.Shop()
+		tmall := &Tmall{}
+		go tmall.Shop(item)
 		break
 	case "JdShop":
-		ti := &Jd{item: item}
-		go ti.Shop()
+		jd := &Jd{}
+		go jd.Shop(item)
 		break
 	case "TaobaoShop":
-		ti := &Taobao{item: item}
-		go ti.Shop()
+		taobao := &Taobao{}
+		go taobao.Shop(item)
 		break
 	case "SameStyle":
-		ti := &Taobao{item: item}
-		go ti.SameStyle()
+		taobao := &Taobao{}
+		go taobao.SameStyle(item)
 	case "Other":
-		ti := &Other{item: item}
-		go ti.Get()
+		other := &Other{}
+		go other.Get(item)
 		break
 	}
 	return
@@ -104,12 +96,10 @@ func (spider *Spider) Error(item *Item) {
 			return
 		}
 	}
-	item.Close()
 	return
 }
 
 func (spider *Spider) Finish(item *Item) {
-	
 	output, err := json.Marshal(item.data)
 	if err != nil {
 		SpiderLoger.E("error with json output")
@@ -118,26 +108,23 @@ func (spider *Spider) Finish(item *Item) {
 	v := url.Values{}
 	v.Add("id", item.params["id"])
 	v.Add("data", fmt.Sprintf("%s", output))
-	if item.method=="" {
-
-	}
 	v.Add("method", fmt.Sprintf("%s", item.method))
 	SpiderLoger.D(v)
 	url, _ := url.QueryUnescape(item.params["callback"])
-	loader := NewLoader(url, "Post").WithProxy(false)
-	_, err = loader.Send(v)
+	
+	loader := NewLoader()
+
+	_, err = loader.WithProxy(false).Send(url, "Post", v)
 	if err != nil {
 		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
 	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
-	item.Close()
 	return
 }
 
 func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
-		htmlParse: NewHtmlParse(),
 		tag:      tag,
 		params:   params,
 		tryTimes: 0,

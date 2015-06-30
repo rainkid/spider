@@ -7,27 +7,28 @@ import (
 )
 
 type Other struct {
-	item    *Item
 	content []byte
 }
 
-func (ti *Other) Get() {
+func (ti *Other) Get(item *Item) {
 	//get content
 
-	var content []byte
-	var err error
+	loader := NewLoader()
 
-	ti.item.loader = NewLoader(ti.item.params["link"], "Get")
-	content, err = ti.item.loader.Send(nil)
+	content, err := loader.Send(item.params["link"], "Get", nil)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+	
+	htmlParser := NewHtmlParser()  
 
-	ti.item.htmlParse.LoadData(content).CleanScript().Replace()
-	ct := []byte(ti.item.loader.rheader.Get("Content-Type"))
+	htmlParser.LoadData(ti.content).CleanScript().Replace()
+	ct := []byte(loader.rheader.Get("Content-Type"))
 	ct = bytes.ToLower(ct)
 
 	var needconv bool = true
@@ -36,44 +37,44 @@ func (ti *Other) Get() {
 	}
 
 	if needconv && bytes.Index(ct, []byte("gbk")) > 0 {
-		ti.item.htmlParse.Convert()
+		htmlParser.Convert()
 		needconv = false
 	}
 
 	if needconv && bytes.Index(ct, []byte("gb2312")) > 0 {
-		ti.item.htmlParse.Convert()
+		htmlParser.Convert()
 		needconv = false
 	}
 
-	if needconv && ti.item.htmlParse.IsGbk() {
-		ti.item.htmlParse.Convert()
+	if needconv && htmlParser.IsGbk() {
+		htmlParser.Convert()
 	}
-
-	ti.content = ti.item.htmlParse.content
 
 	//get title and check
-	if ti.GetOtherTitle().CheckError() {
+	if ti.GetOtherTitle(item).CheckError(item) {
 		return
 	}
-	// fmt.Println(ti.item.data)
-	SpiderServer.qfinish <- ti.item
+	// fmt.Println(item.data)
+	SpiderServer.qfinish <- item
 }
 
-func (ti *Other) GetOtherTitle() *Other {
-	hp := ti.item.htmlParse.LoadData(ti.content)
+func (ti *Other) GetOtherTitle(item *Item) *Other {
+	htmlParser := NewHtmlParser()  
+
+	hp := htmlParser.LoadData(ti.content)
 	title := hp.FindByTagName("title")
 	if title == nil {
-		ti.item.err = errors.New(`get title error`)
+		item.err = errors.New(`get title error`)
 		return ti
 	}
 
-	ti.item.data["title"] = fmt.Sprintf("%s", title[0][2])
+	item.data["title"] = fmt.Sprintf("%s", title[0][2])
 	return ti
 }
 
-func (ti *Other) CheckError() bool {
-	if ti.item.err != nil {
-		SpiderServer.qerror <- ti.item
+func (ti *Other) CheckError(item *Item) bool {
+	if item.err != nil {
+		SpiderServer.qerror <- item
 		return true
 	}
 	return false

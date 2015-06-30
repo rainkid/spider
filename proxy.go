@@ -64,14 +64,19 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 
 
 func (sp *Proxy) Load(proxyUrl string) {
+	loader := NewLoader()
 
-	loader := NewLoader(proxyUrl, "GET").WithPcAgent().WithProxy(false)
-	content, err := loader.Send(nil)
+	content, err := loader.WithPcAgent().WithProxy(false).Send(proxyUrl, "GET", nil)
 	if err != nil {
 		SpiderLoger.E("Load proxy error with", proxyUrl)
 		return
 	}
-	hp := NewHtmlParse().LoadData(content).Replace().CleanScript()
+	mcontent := make([]byte, len(content))
+	copy(mcontent, content)
+
+	htmlParser := NewHtmlParser()
+
+	hp := htmlParser.LoadData(mcontent).Replace().CleanScript()
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
@@ -95,7 +100,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		}
 	}
 	if proxyNum <= 5 {
-		SpiderLoger.E("spider have %d proxy servers only", proxyNum)
+		SpiderLoger.E("proxy servers only ", proxyNum)
 	}
 	SpiderLoger.I("The proxy server count", proxyNum)
 	return

@@ -11,62 +11,63 @@ import (
 )
 
 type Taobao struct {
-	item    *Item
 	content []byte
 	json map[string]interface{}
 }
 
-func (ti *Taobao) Item() {
-	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", ti.item.params["id"])
+func (ti *Taobao) Item(item *Item) {
+	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", item.params["id"])
 	//get content
-	ti.item.loader = NewLoader(url, "Get")
-	content, err := ti.item.loader.Send(nil)
-	ti.content = content
+	loader := NewLoader()
+
+	content, err := loader.Send(url, "Get", nil)
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
 	//json praise
-	if  err := json.Unmarshal(content, &ti.json); err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+	if  err := json.Unmarshal(ti.content, &ti.json); err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
 
-	_,err = ti.CheckResponse()
+	_,err = ti.CheckResponse(item)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
 
-	if ti.GetBasicInfo().CheckError() {
+	if ti.GetBasicInfo(item).CheckError(item) {
 		return
 	}
 
-	// fmt.Println(ti.item.data)
-	SpiderServer.qfinish <- ti.item
+	// fmt.Println(item.data)
+	SpiderServer.qfinish <- item
 	return
 }
 
-func (ti *Taobao) CheckResponse()(*Taobao, error ){
+func (ti *Taobao) CheckResponse(item *Item)(*Taobao, error ){
 
 	tmp := ti.json["ret"].([]interface{})
 	ret := tmp[0].(string)
 	if ret =="ERRCODE_QUERY_DETAIL_FAIL::宝贝不存在" {
-		ti.item.err = errors.New(`not found`)
-		ti.item.method="delete"
+		item.err = errors.New(`not found`)
+		item.method="delete"
 		return ti,errors.New("not found");
 	}
-	ti.item.method="post"
+	item.method="post"
 	return ti,nil;
 }
 
 
-func (ti *Taobao) GetBasicInfo() *Taobao {
+func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 
 	data := ti.json["data"].(map[string]interface{})
 
@@ -77,8 +78,8 @@ func (ti *Taobao) GetBasicInfo() *Taobao {
 	var api_stack map[string]interface {}
 	stack_data:= []byte(apiStack.(string))
 	if  err := json.Unmarshal(stack_data, &api_stack); err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return ti
 	}
 
@@ -94,25 +95,27 @@ func (ti *Taobao) GetBasicInfo() *Taobao {
 		price, _ = strconv.ParseFloat(fmt.Sprintf("%s", price_byte), 64)
 	}
 
-	ti.item.data["price"]              = fmt.Sprintf("%.2f", price)
-	ti.item.data["title"]              = fmt.Sprintf("%s", itemInfoModel["title"])
-	ti.item.data["favcount"]           = fmt.Sprintf("%s", itemInfoModel["favcount"])
-	ti.item.data["img"]                = fmt.Sprintf("%s", itemInfoModel["picsPath"].([]interface{})[0])
-	ti.item.data["goodRatePercentage"] = fmt.Sprintf("%s", seller["goodRatePercentage"])
-	ti.item.data["totalSoldQuantity"]  = fmt.Sprintf("%s", info["totalSoldQuantity"])
+	item.data["price"]              = fmt.Sprintf("%.2f", price)
+	item.data["title"]              = fmt.Sprintf("%s", itemInfoModel["title"])
+	item.data["favcount"]           = fmt.Sprintf("%s", itemInfoModel["favcount"])
+	item.data["img"]                = fmt.Sprintf("%s", itemInfoModel["picsPath"].([]interface{})[0])
+	item.data["goodRatePercentage"] = fmt.Sprintf("%s", seller["goodRatePercentage"])
+	item.data["totalSoldQuantity"]  = fmt.Sprintf("%s", info["totalSoldQuantity"])
 
 	return ti
 }
 
-func (ti *Taobao) GetItemPrice() *Taobao {
-	ti.item.htmlParse.LoadData(ti.content)
-	price := ti.item.htmlParse.Partten(`(?U)"rangePrice":".*","price":"(.*)"`).FindStringSubmatch()
+func (ti *Taobao) GetItemPrice(item *Item) *Taobao {
+	htmlParser := NewHtmlParser()
+
+	htmlParser.LoadData(ti.content)
+	price := htmlParser.Partten(`(?U)"rangePrice":".*","price":"(.*)"`).FindStringSubmatch()
 
 	if price == nil {
-		price = ti.item.htmlParse.Partten(`(?U)"price":"(.*)"`).FindStringSubmatch()
+		price = htmlParser.Partten(`(?U)"price":"(.*)"`).FindStringSubmatch()
 	}
 	if price == nil {
-		ti.item.err = errors.New(`get price error`)
+		item.err = errors.New(`get price error`)
 		return ti
 	}
 
@@ -124,96 +127,100 @@ func (ti *Taobao) GetItemPrice() *Taobao {
 		iprice, _ = strconv.ParseFloat(fmt.Sprintf("%s", price[1]), 64)
 	}
 
-	ti.item.data["price"] = fmt.Sprintf("%.2f", iprice)
+	item.data["price"] = fmt.Sprintf("%.2f", iprice)
 	return ti
 }
 
-func (ti *Taobao) Shop() {
-	if ti.GetShopTitle().CheckError() {
+func (ti *Taobao) Shop(item *Item) {
+	if ti.GetShopTitle(item).CheckError(item) {
 		return
 	}
-	url := fmt.Sprintf("http://s.taobao.com/search?q=%s&app=shopsearch", ti.item.data["title"])
+	url := fmt.Sprintf("http://s.taobao.com/search?q=%s&app=shopsearch", item.data["title"])
 	//get content
-	ti.item.loader = NewLoader(url, "Get").WithPcAgent()
-	content, err := ti.item.loader.Send(nil)
+	loader := NewLoader()
+
+	content, err := loader.WithPcAgent().Send(url, "Get", nil)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
 
-	ti.item.htmlParse.LoadData(content).CleanScript().Replace().Convert()
-	ti.content = ti.item.htmlParse.content
+	htmlParser := NewHtmlParser()
 
-	if ti.GetShopImgs().CheckError() {
+	htmlParser.LoadData(ti.content).CleanScript().Replace().Convert()
+
+	if ti.GetShopImgs(item).CheckError(item) {
 		return
 	}
-	// fmt.Println(ti.item.data)
-	SpiderServer.qfinish <- ti.item
+	// fmt.Println(item.data)
+	SpiderServer.qfinish <- item
 	return
 }
 
-func (ti *Taobao) GetShopTitle() *Taobao {
-	url := fmt.Sprintf("http://shop%s.m.taobao.com/", ti.item.params["id"])
+func (ti *Taobao) GetShopTitle(item *Item) *Taobao {
+	url := fmt.Sprintf("http://shop%s.m.taobao.com/", item.params["id"])
 	//get content
-	ti.item.loader = NewLoader(url, "Get")
-	shop, err := ti.item.loader.Send(nil)
+	loader := NewLoader()
+
+	content, err := loader.Send(url, "Get", nil)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return ti
 	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
 
-	ti.item.htmlParse.LoadData(shop).Replace()
-	shopname := ti.item.htmlParse.FindByTagName("title")
+	htmlParser := NewHtmlParser()
+	
+	htmlParser.LoadData(ti.content).Replace()
+	shopname := htmlParser.FindByTagName("title")
 
 	if shopname == nil {
-		ti.item.err = errors.New("get shop title error")
-		SpiderServer.qerror <- ti.item
+		item.err = errors.New("get shop title error")
+		SpiderServer.qerror <- item
 		return ti
 
 	}
-//	uid := hp.Partten(`G_msp_userId="(\d+)"`).FindStringSubmatch()
-//	if uid == nil {
-//		ti.item.err = errors.New("get shop uid error")
-//		SpiderServer.qerror <- ti.item
-//		return ti
-//	}
-//	ti.item.data["uid"] = fmt.Sprintf("%s", uid[1])
 	title := bytes.Replace(shopname[0][2], []byte("首页"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("淘宝网"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("天猫"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("Tmall.com"), []byte(""), -1)
 	title = bytes.Replace(title, []byte("-"), []byte(" "), -1)
 	title = bytes.Trim(title, " ")
-	ti.item.data["title"] = fmt.Sprintf("%s", title)
+	item.data["title"] = fmt.Sprintf("%s", title)
 	return ti
 }
 
-func (ti *Taobao) GetShopImgs() *Taobao {
-	ti.item.htmlParse.LoadData(ti.content)
-	ret := ti.item.htmlParse.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
+func (ti *Taobao) GetShopImgs(item *Item) *Taobao {
+	htmlParser := NewHtmlParser()
+
+	htmlParser.LoadData(ti.content)
+	ret := htmlParser.Partten(`(?U)<li class="list-item">(.*)</p> </li>`).FindAllSubmatch()
 	l := len(ret)
 
 	if l == 0 {
-		ti.item.err = errors.New(`shop not found.`)
+		item.err = errors.New(`shop not found.`)
 		return ti
 	}
 	var imgs [][][]byte
 	for i := 0; i < l; i++ {
 		val := ret[i][1]
-		sep := []byte(fmt.Sprintf(`data-item="%s"`, ti.item.params["id"]))
+		sep := []byte(fmt.Sprintf(`data-item="%s"`, item.params["id"]))
 		if bytes.Index(val, sep) > 0 {
-			hp1 := ti.item.htmlParse.LoadData(val)
+			hp1 := htmlParser.LoadData(val)
 			imgs = hp1.Partten(`(?U)src="(.*)"`).FindAllSubmatch()
 		}
 
 	}
 	imgl := len(imgs)
 	if imgl == 0 {
-		ti.item.err = errors.New(`get shop imgs error`)
+		item.err = errors.New(`get shop imgs error`)
 		return ti
 	}
 
@@ -224,30 +231,35 @@ func (ti *Taobao) GetShopImgs() *Taobao {
 	for i := 1; i < imgl; i++ {
 		imglist = append(imglist, fmt.Sprintf("%s", imgs[i][1]))
 	}
-	ti.item.data["img"] = fmt.Sprintf("%s", imgs[0][1])
-	ti.item.data["imgs"] = strings.Join(imglist, ",")
+	item.data["img"] = fmt.Sprintf("%s", imgs[0][1])
+	item.data["imgs"] = strings.Join(imglist, ",")
 	return ti
 }
 
-func (ti *Taobao) SameStyle() {
+func (ti *Taobao) SameStyle(item *Item) {
 	var result []map[string]string
-	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", ti.item.params["pid"], ti.item.params["id"])
-	ti.item.loader = NewLoader(url, "Get").WithPcAgent().WithProxy(false)
-	content, err := ti.item.loader.Send(nil)
+	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", item.params["pid"], item.params["id"])
+
+	loader := NewLoader()
+	content, err := loader.WithPcAgent().WithProxy(false).Send(url, "Get", nil)
 
 	if err != nil {
-		ti.item.err = err
-		SpiderServer.qerror <- ti.item
+		item.err = err
+		SpiderServer.qerror <- item
 		return
 	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
 
-	hp := ti.item.htmlParse.LoadData(content).Replace()
+	htmlParser := NewHtmlParser()
+
+	hp := htmlParser.LoadData(ti.content).Replace()
 	ret := hp.Partten(`(?U)"nid".*"pid_info"`).FindAllSubmatch()
 
 	l := len(ret) - 1
 	if l <= 0 {
-		ti.item.err = errors.New(`Can't found samestyle goods`)
-		SpiderServer.qerror <- ti.item
+		item.err = errors.New(`Can't found samestyle goods`)
+		SpiderServer.qerror <- item
 		return
 	}
 	var (
@@ -285,7 +297,10 @@ func (ti *Taobao) SameStyle() {
 		var sortScore = lret - i
 		data := map[string]string{"channel": "taobao", "comment_num": "0", "pay_num": "0", "sortScore": "0", "express": "0.00"}
 		val := ret[i][0]
-		hp1 := ti.item.htmlParse.LoadData(val)
+
+		htmlParser := NewHtmlParser()
+
+		hp1 := htmlParser.LoadData(val)
 
 		id := hp1.Partten(`(?U)"nid":"(\d+)"`).FindStringSubmatch()
 		data["id"] = fmt.Sprintf("%s", id[1])
@@ -372,20 +387,20 @@ func (ti *Taobao) SameStyle() {
 		}
 	}
 	if len(result) == 0 {
-		ti.item.err = errors.New(fmt.Sprintf("%d result load and %d result matched", l, len(result)))
-		SpiderServer.qerror <- ti.item
+		item.err = errors.New(fmt.Sprintf("%d result load and %d result matched", l, len(result)))
+		SpiderServer.qerror <- item
 		return
 	}
-	ti.item.data["unipid"] = ti.item.params["pid"]
-	ti.item.data["nid"] = ti.item.params["id"]
-	ti.item.data["list"] = result
-	SpiderServer.qfinish <- ti.item
+	item.data["unipid"] = item.params["pid"]
+	item.data["nid"] = item.params["id"]
+	item.data["list"] = result
+	SpiderServer.qfinish <- item
 	return
 }
 
-func (ti *Taobao) CheckError() bool {
-	if ti.item.err != nil {
-		SpiderServer.qerror <- ti.item
+func (ti *Taobao) CheckError(item *Item) bool {
+	if item.err != nil {
+		SpiderServer.qerror <- item
 		return true
 	}
 	return false
