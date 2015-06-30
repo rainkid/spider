@@ -42,13 +42,8 @@ func NewLoader() *Loader {
 		},
 	}
 	time.AfterFunc(time.Duration(30)*time.Second, func() {
-		defer func() {
-			SpiderLoger.E("probably request is nil")
-			recover()
-		}()
 		l.Close()
 	})
-	defer l.Close()
 	l.MobildAgent()
 	return l
 }
@@ -128,6 +123,7 @@ func (l *Loader) GetRequest() {
 
 func (l *Loader) Close() {
 	if l.transport != nil {
+		SpiderLoger.D("Loader closed request [", l.url, "]")
 		l.transport.CloseIdleConnections()
 		l.transport.CancelRequest(l.request)
 	}
@@ -183,6 +179,7 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 		return nil, err
 	}
 	l.rheader = resp.Header
+	l.Close()
 	return body, nil
 }
 
