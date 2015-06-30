@@ -28,23 +28,10 @@ type Loader struct {
 	mheader   map[string]string
 }
 
-func NewLoader() *Loader {
-	transport :=  &http.Transport{
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-		Dial: func(netw, addr string) (net.Conn, error) { 
-			deadline := time.Now().Add(30 * time.Second)
-			c, err := net.DialTimeout(netw, addr, time.Second*30) 
-			if err != nil { 
-				SpiderLoger.E("http transport dail timeout", err) 
-		 		return nil, err 
-			} 
-			c.SetDeadline(deadline)
-		    	return c, nil 
-		}, 
-		// MaxIdleConnsPerHost:10, 
-		ResponseHeaderTimeout: time.Second * 30, 
-	}
 
+
+func NewLoader() *Loader {
+	transport := NewTransPort(30)
 	l := &Loader{
 		transport: transport,
 		useProxy:  true,
@@ -54,9 +41,37 @@ func NewLoader() *Loader {
 			"Connection":"close",
 		},
 	}
+	time.AfterFunc(time.Duration(30)*time.Second, func() {
+		defer func() {
+			SpiderLoger.E("probably request is nil")
+			recover()
+		}()
+		l.Close()
+	})
 	defer l.Close()
 	l.MobildAgent()
 	return l
+}
+
+func NewTransPort(timeout int) *http.Transport{
+	duration := time.Duration(timeout) * time.Second
+	transport :=  &http.Transport{
+		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+		Dial: func(netw, addr string) (net.Conn, error) { 
+			deadline := time.Now().Add(duration)
+			c, err := net.DialTimeout(netw, addr, duration) 
+			if err != nil { 
+				SpiderLoger.E("http transport dail timeout", err) 
+		 		return nil, err 
+			} 
+			c.SetDeadline(deadline)
+		    return c, nil 
+		}, 
+		DisableKeepAlives:true,
+		// MaxIdleConnsPerHost:10, 
+		ResponseHeaderTimeout: duration, 
+	}
+	return transport
 }
 
 func (l *Loader) WithProxy(val bool) *Loader {
