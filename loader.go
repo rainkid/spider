@@ -31,7 +31,7 @@ type Loader struct {
 
 
 func NewLoader() *Loader {
-	transport := NewTransPort(30)
+	transport := NewTransPort(15)
 	l := &Loader{
 		transport: transport,
 		useProxy:  true,
@@ -43,8 +43,9 @@ func NewLoader() *Loader {
 	}
 	defer l.Close()
 
-	time.AfterFunc(time.Duration(30)*time.Second, func() {
+	time.AfterFunc(time.Duration(15)*time.Second, func() {
 		l.Close()
+		recover()
 	})
 	l.MobildAgent()
 	return l
