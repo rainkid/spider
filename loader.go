@@ -41,7 +41,6 @@ func NewLoader() *Loader {
 			"Connection":"close",
 		},
 	}
-	defer l.Close()
 
 	time.AfterFunc(time.Duration(15)*time.Second, func() {
 		l.Close()
