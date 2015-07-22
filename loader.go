@@ -4,8 +4,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
-	"compress/gzip"
 	"io/ioutil"
 	utils "libs/utils"
 	"net/http"
@@ -31,18 +29,19 @@ type Loader struct {
 
 
 func NewLoader() *Loader {
-	transport := NewTransPort(15)
+	transport := NewTransPort(30)
 	l := &Loader{
 		transport: transport,
 		useProxy:  true,
 		mheader: map[string]string{
+			"Accept-Charset":"utf-8",
 			"Accept-Encoding": "gzip, deflate",
 			"Content-Type": "application/x-www-form-urlencoded",
 			"Connection":"close",
 		},
 	}
 
-	time.AfterFunc(time.Duration(15)*time.Second, func() {
+	time.AfterFunc(time.Duration(30)*time.Second, func() {
 		l.Close()
 		recover()
 	})
@@ -163,25 +162,11 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 		return nil, err
 	}
 
-	var reader io.ReadCloser
-	switch resp.Header.Get("Content-Encoding") {
-		case "gzip":
-			reader, err = gzip.NewReader(resp.Body)
-			if err != nil {
-				return nil, err
-			}
-			defer reader.Close()
-		default:
-			reader = resp.Body
-	}
-
-	body := make([]byte, 1024)
-	body, err = ioutil.ReadAll(reader)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 	l.rheader = resp.Header
-	l.Close()
 	return body, nil
 }
 

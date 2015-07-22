@@ -91,12 +91,12 @@ func (hp *htmlParser) Close() {
 func (hp *htmlParser) Convert() *htmlParser {
 	cd, err := iconv.Open("UTF-8//IGNORE", "GB2312")
 	if err != nil {
-		SpiderLoger.E("iconv.Open failed!")
+		fmt.Println("iconv.Open failed!")
 		return hp
 	}
 	defer cd.Close()
-	
-	cd.Conv(hp.content, hp.content)
+	data := fmt.Sprintf("%s", hp.content);
+	hp.content = []byte(cd.ConvString(data))
 	return hp
 }
 
