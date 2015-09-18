@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	utils "libs/utils"
 	"net/http"
+	"compress/gzip"
 	"net/url"
+	"io"
 	"time"
 	"net"
 	"strconv"
@@ -163,7 +165,19 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	var reader io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+		case "gzip":
+			reader, err = gzip.NewReader(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			defer reader.Close()
+		default:
+			reader = resp.Body
+	}
+
+	body, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
