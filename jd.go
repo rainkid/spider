@@ -1,7 +1,7 @@
 package spider
 
 import (
-	"bytes"
+	// "bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -13,7 +13,7 @@ type Jd struct {
 }
 
 func (ti *Jd) Item(item *Item) {
-	url := fmt.Sprintf("http://m.jd.com/product/%s.html", item.params["id"])
+	url := fmt.Sprintf("http://item.m.jd.com/ware/view.action?wareId=%s", item.params["id"])
 
 	//get content
 	loader := NewLoader()
@@ -25,11 +25,10 @@ func (ti *Jd) Item(item *Item) {
 		SpiderServer.qerror <- item
 		return
 	}
-
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 
-	ti.content = bytes.Replace(ti.content, []byte(`\"`), []byte(`"`), -1)
+	// ti.content = bytes.Replace(ti.content, []byte(`\"`), []byte(`"`), -1)
 
 	if ti.GetItemTitle(item).CheckError(item) {
 		return
@@ -50,7 +49,7 @@ func (ti *Jd) GetItemTitle(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content).CleanScript().Replace()
-	title := htmlParser.Partten(`(?Usm)<title>(.*)-\s`).FindStringSubmatch()
+	title := htmlParser.Partten(`(?U)<meta name="keywords" CONTENT="(.*)">`).FindStringSubmatch()
 
 	if title == nil {
 		item.err = errors.New(`get title error`)
@@ -79,7 +78,7 @@ func (ti *Jd) GetItemImg(item *Item) *Jd {
 
 	hp := htmlParser.LoadData(ti.content)
 
-	img := hp.Partten(`(?U)src="(http://img10.360buyimg.com/.*)"`).FindStringSubmatch()
+	img := hp.Partten(`(?U)<img class="unit-pic J_ping".*src="(.*)">`).FindStringSubmatch()
 
 	if img == nil {
 		item.err = errors.New(`get img error`)

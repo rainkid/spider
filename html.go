@@ -113,12 +113,6 @@ func (hp *htmlParser) Replace() *htmlParser {
 	return hp
 }
 
-func (hp *htmlParser) Test() {
-	reg := regexp.MustCompile(`\s`)
-	content := []byte(reg.ReplaceAllLiteral([]byte("a adf aa"), []byte("")))
-	fmt.Println(content)
-}
-
 func (hp *htmlParser) Partten(p string) *htmlParser {
 	hp.partten = p
 	return hp
