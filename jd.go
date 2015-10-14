@@ -1,7 +1,6 @@
 package spider
 
 import (
-	// "bytes"
 	"errors"
 	"fmt"
 	"strconv"
