@@ -34,7 +34,7 @@ func NewLoader() *Loader {
 	transport := NewTransPort(30)
 	l := &Loader{
 		transport: transport,
-		useProxy:  true,
+		useProxy:  false,
 		mheader: map[string]string{
 			"Accept-Charset":"utf-8",
 			"Accept-Encoding": "gzip, deflate",
