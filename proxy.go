@@ -9,14 +9,14 @@ import (
 )
 
 type ProxyServerInfo struct {
-	id   int
-	host string
-	port string
-	rate float64 //network speed
-	style int //1 http 2 https 3 socket
-	anonymous bool //0 transparent 1 low 2 high
-	last_check string //timestamp last check time
-	area string //timestamp last check time
+	id         int
+	host       string
+	port       string
+	rate       float64 //network speed
+	style      int     //1 http 2 https 3 socket
+	anonymous  bool    //0 transparent 1 low 2 high
+	last_check string  //timestamp last check time
+	area       string  //timestamp last check time
 }
 
 type Proxy struct {
@@ -26,7 +26,7 @@ type Proxy struct {
 
 var (
 	SpiderProxy *Proxy
-	proxyNum    = 0
+	proxyNum = 0
 )
 
 func NewProxy() *Proxy {
@@ -44,20 +44,38 @@ func StartProxy() *Proxy {
 
 func (sp *Proxy) Daemon() {
 	go func() {
-//		for {
-//			SpiderLoger.I("Proxy start new runtime")
-//			proxyNum = 0
-//			for i := 1; i < 5; i++ {
-//				go sp.Load(fmt.Sprintf("http://proxy.com.ru/list_%d.html", i))
-//			}
-//			time.Sleep(time.Second * 10 * 60)
-//		}
+		//		for {
+		//			SpiderLoger.I("Proxy start new runtime")
+		//			proxyNum = 0
+		//			for i := 1; i < 5; i++ {
+		//				go sp.Load(fmt.Sprintf("http://proxy.com.ru/list_%d.html", i))
+		//			}
+		//			time.Sleep(time.Second * 10 * 60)
+		//		}
+		//		for {
+		//			SpiderLoger.I("Proxy start new runtime with xicidaili")
+		//			proxyNum = 0
+		//			for i := 1; i < 3; i++ {
+		////				xicidaili
+		//				go sp.Xici(fmt.Sprintf("http://www.xicidaili.com/nn/%d", i))
+		//			}
+		//			time.Sleep(time.Second * 10 * 60)
+		//		}
+		//		for {
+		//			SpiderLoger.I("Proxy start new runtime with haodailiip")
+		//			proxyNum = 0
+		//			for i := 1; i < 3; i++ {
+		////				xicidaili
+		//				go sp.Xici(fmt.Sprintf("http://www.xicidaili.com/nn/%d", i))
+		//			}
+		//			time.Sleep(time.Second * 10 * 60)
+		//		}
 		for {
-			SpiderLoger.I("Proxy start new runtime with xicidaili")
+			SpiderLoger.I("Proxy start new runtime with kuaidaili")
 			proxyNum = 0
 			for i := 1; i < 3; i++ {
-//				xicidaili
-				go sp.Xici(fmt.Sprintf("http://www.xicidaili.com/nn/%d", i))
+				//				xicidaili
+				go sp.kuai(fmt.Sprintf("http://www.kuaidaili.com/proxylist/%d", i))
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
@@ -79,6 +97,56 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 
 
 
+func (sp *Proxy) kuai(proxyUrl string) {
+	loader := NewLoader()
+
+	content, err := loader.WithPcAgent().WithProxy(false).Send(proxyUrl, "GET", nil)
+	if err != nil {
+		SpiderLoger.E("Load proxy error with", proxyUrl)
+		return
+	}
+
+	mcontent := make([]byte, len(content))
+	copy(mcontent, content)
+
+	htmlParser := NewHtmlParser()
+
+	hp := htmlParser.LoadData(mcontent).Replace().CleanScript()
+	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td>\s<td>(\d+)</td>`).FindAllSubmatch()
+	l := len(trs)
+	if l == 0 {
+		SpiderLoger.E("load proxy data from " + proxyUrl + " error. ")
+		return
+	}
+	if proxyNum == 0 {
+		sp.Servers = make(map[int]*ProxyServerInfo)
+	}
+	for i := 0; i < l; i++ {
+		ip, port := string(trs[i][1]), string(trs[i][2])
+//		sp.Servers[proxyNum] = &ProxyServerInfo{id:proxyNum, host:ip, port:port}
+//		proxyNum++
+		pr := &PingResult{}
+		err = Ping(pr, ip, port)
+		if err != nil {
+			// SpiderLoger.W("Ping error", err.Error())
+			continue
+		}
+		if pr.LostRate == 0 && pr.Average < 500 {
+			sp.Servers[proxyNum] = &ProxyServerInfo{id:proxyNum, host:ip, port:port}
+			proxyNum++
+		}
+	}
+	if proxyNum <= 5 {
+		SpiderLoger.E("proxy servers only ", proxyNum)
+	}
+	SpiderLoger.I("The proxy server count", proxyNum)
+	return
+
+
+}
+
+
+
 func (sp *Proxy) Xici(proxyUrl string) {
 	loader := NewLoader()
 
@@ -87,7 +155,7 @@ func (sp *Proxy) Xici(proxyUrl string) {
 		SpiderLoger.E("Load proxy error with", proxyUrl)
 		return
 	}
-//	fmt.Println(string(content))
+	//	fmt.Println(string(content))
 	mcontent := make([]byte, len(content))
 	copy(mcontent, content)
 
@@ -98,7 +166,7 @@ func (sp *Proxy) Xici(proxyUrl string) {
 	trs := hp.Partten(pattern).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
-		SpiderLoger.E("load proxy data from "+proxyUrl+" error. ")
+		SpiderLoger.E("load proxy data from " + proxyUrl + " error. ")
 		return
 	}
 
@@ -106,18 +174,18 @@ func (sp *Proxy) Xici(proxyUrl string) {
 		sp.Servers = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
-		area,ip, port,anonymous,style,rate,last_check := string(trs[i][1]), string(trs[i][2]), string(trs[i][3]), string(trs[i][4]), string(trs[i][5]), string(trs[i][6]), string(trs[i][7])
-		info :=ProxyServerInfo{}
+		area, ip, port, anonymous, style, rate, last_check := string(trs[i][1]), string(trs[i][2]), string(trs[i][3]), string(trs[i][4]), string(trs[i][5]), string(trs[i][6]), string(trs[i][7])
+		info := ProxyServerInfo{}
 
-		style_map := map[string]int{"http":1,"https":2,"socket":3}
-		tm := time.Unix(time.Now().Unix(),0)
+		style_map := map[string]int{"http":1, "https":2, "socket":3}
+		tm := time.Unix(time.Now().Unix(), 0)
 
 		fmt.Println(tm.Format("2006-01-02 03:04:05 PM"))
 		info.id = proxyNum
 		info.host = ip
 		info.port = port
-		info.rate ,_= strconv.ParseFloat(rate, 64)
-		info.anonymous = (anonymous=="高匿")
+		info.rate, _ = strconv.ParseFloat(rate, 64)
+		info.anonymous = (anonymous == "高匿")
 		info.style = style_map[strings.ToLower(style)]
 		info.area = strings.ToLower(area)
 		info.last_check = last_check
@@ -149,7 +217,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
-		SpiderLoger.E("load proxy data from "+proxyUrl+" error. ")
+		SpiderLoger.E("load proxy data from " + proxyUrl + " error. ")
 		return
 	}
 	if proxyNum == 0 {
@@ -164,7 +232,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 			continue
 		}
 		if pr.LostRate == 0 && pr.Average < 500 {
-//			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
+			//			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
 			proxyNum++
 		}
 	}

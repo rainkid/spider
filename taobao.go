@@ -392,8 +392,8 @@ func (ti *Taobao) SameStyle(item *Item) {
 		return
 	}
 	item.data["unipid"] = item.params["pid"]
-	item.data["nid"] = item.params["id"]
-	item.data["list"] = result
+	item.data["nid"]    = item.params["id"]
+	item.data["list"]   = result
 	SpiderServer.qfinish <- item
 	return
 }
