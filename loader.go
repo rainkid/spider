@@ -140,7 +140,6 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 	proxy_addr:= "none"
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
-		fmt.Println(proxyServerInfo)
 		if proxyServerInfo != nil {
 			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			l.transport.Proxy = http.ProxyURL(proxyUrl)
