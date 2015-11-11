@@ -1,19 +1,19 @@
 package spider
 
 import (
+	"compress/gzip"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	utils "libs/utils"
-	"net/http"
-	"compress/gzip"
-	"net/url"
-	"io"
-	"time"
 	"net"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Loader struct {
@@ -28,18 +28,16 @@ type Loader struct {
 	mheader   map[string]string
 }
 
-
-
 func NewLoader() *Loader {
 	transport := NewTransPort(30)
 	l := &Loader{
 		transport: transport,
 		useProxy:  true,
 		mheader: map[string]string{
-			"Accept-Charset":"utf-8",
+			"Accept-Charset":  "utf-8",
 			"Accept-Encoding": "gzip, deflate",
-			"Content-Type": "application/x-www-form-urlencoded",
-			"Connection":"close",
+			"Content-Type":    "application/x-www-form-urlencoded",
+			"Connection":      "close",
 		},
 	}
 
@@ -51,23 +49,23 @@ func NewLoader() *Loader {
 	return l
 }
 
-func NewTransPort(timeout int) *http.Transport{
+func NewTransPort(timeout int) *http.Transport {
 	duration := time.Duration(timeout) * time.Second
-	transport :=  &http.Transport{
+	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
-		Dial: func(netw, addr string) (net.Conn, error) { 
+		Dial: func(netw, addr string) (net.Conn, error) {
 			deadline := time.Now().Add(duration)
-			c, err := net.DialTimeout(netw, addr, duration) 
-			if err != nil { 
-				SpiderLoger.E("http transport dail timeout", err) 
-		 		return nil, err 
-			} 
+			c, err := net.DialTimeout(netw, addr, duration)
+			if err != nil {
+				SpiderLoger.E("http transport dail timeout", err)
+				return nil, err
+			}
 			c.SetDeadline(deadline)
-		    return c, nil 
-		}, 
-		DisableKeepAlives:true,
-		// MaxIdleConnsPerHost:10, 
-		ResponseHeaderTimeout: duration, 
+			return c, nil
+		},
+		DisableKeepAlives: true,
+		// MaxIdleConnsPerHost:10,
+		ResponseHeaderTimeout: duration,
 	}
 	return transport
 }
@@ -138,12 +136,13 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 	l.method = strings.ToUpper(method)
 	l.data = data
 
-	var proxyUrl *url.URL
+	proxy_addr := "none"
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
 		if proxyServerInfo != nil {
-			proxyUrl, _ = url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			l.transport.Proxy = http.ProxyURL(proxyUrl)
+			proxy_addr = fmt.Sprintf("%s:%s", proxyServerInfo.host, proxyServerInfo.port)
 		}
 	}
 
@@ -154,13 +153,13 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 
 	l.GetRequest()
 	resp, err := l.client.Do(l.request)
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if (l.useProxy) {
-		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy [%s].", resp.StatusCode, l.url, proxyUrl))
+	if l.useProxy {
+		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy [%s].", resp.StatusCode, l.url, proxy_addr))
 	} else {
 		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s]", resp.StatusCode, l.url))
 	}
@@ -171,14 +170,14 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 
 	var reader io.ReadCloser
 	switch resp.Header.Get("Content-Encoding") {
-		case "gzip":
-			reader, err = gzip.NewReader(resp.Body)
-			if err != nil {
-				return nil, err
-			}
-			defer reader.Close()
-		default:
-			reader = resp.Body
+	case "gzip":
+		reader, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+	default:
+		reader = resp.Body
 	}
 
 	body, err := ioutil.ReadAll(reader)

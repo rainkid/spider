@@ -25,7 +25,7 @@ func (l *MyLoger) D(infos ...interface{}) {
 }
 
 func (l *MyLoger) I(infos ...interface{}) {
-	l.infoType = "INFO"
+	l.infoType = " INFO"
 	l.Infos = infos
 	l.P()
 }
@@ -37,7 +37,7 @@ func (l *MyLoger) E(infos ...interface{}) {
 }
 
 func (l *MyLoger) W(infos ...interface{}) {
-	l.infoType = "WARN"
+	l.infoType = " WARN"
 	l.Infos = infos
 	l.P()
 }
@@ -48,5 +48,5 @@ func (l *MyLoger) P() {
 		s += fmt.Sprintf("%v ", v)
 	}
 	// l.Handler.SetPrefix(fmt.Sprintf("%s - "))
-	l.Handler.Println(fmt.Sprintf(`SPIDER - %s - "%s"`, l.infoType, s))
+	l.Handler.Println(fmt.Sprintf(`<SPIDER> [%s] %s`, l.infoType, s))
 }
