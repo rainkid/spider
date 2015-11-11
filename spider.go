@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 )
 
 var (
 	SpiderServer *Spider
-	SpiderLoger  *MyLoger      = NewMyLoger()
+	SpiderLoger  *MyLoger = NewMyLoger()
 )
 
 type Spider struct {
@@ -57,7 +58,7 @@ func (spider *Spider) Do(item *Item) {
 		go taobao.Item(item)
 		break
 	case "JdItem":
-		jd:= &Jd{}
+		jd := &Jd{}
 		go jd.Item(item)
 		break
 	case "MmbItem":
@@ -67,6 +68,10 @@ func (spider *Spider) Do(item *Item) {
 	case "TmallShop":
 		tmall := &Tmall{}
 		go tmall.Shop(item)
+		break
+	case "TmallSearch":
+		tmall := &Tmall{}
+		go tmall.Search(item)
 		break
 	case "JdShop":
 		jd := &Jd{}
@@ -92,7 +97,7 @@ func (spider *Spider) Error(item *Item) {
 		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		SpiderLoger.E(err)
 		if item.tryTimes < 2 {
-			SpiderServer.qstart<-item
+			SpiderServer.qstart <- item
 			return
 		}
 	}
@@ -111,7 +116,7 @@ func (spider *Spider) Finish(item *Item) {
 	v.Add("method", fmt.Sprintf("%s", item.method))
 	SpiderLoger.D(v)
 	url, _ := url.QueryUnescape(item.params["callback"])
-	
+
 	loader := NewLoader()
 
 	_, err = loader.WithProxy(false).Send(url, "Post", v)
@@ -147,6 +152,9 @@ func (spider *Spider) Daemon() {
 				break
 			case item := <-spider.qerror:
 				go spider.Error(item)
+				break
+			default:
+				time.Sleep(time.Second * 1)
 				break
 			}
 		}

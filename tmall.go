@@ -218,6 +218,24 @@ func (ti *Tmall) GetShopImgs(item *Item) *Tmall {
 	return ti
 }
 
+func (ti *Tmall) Search(item *Item) {
+	url := fmt.Sprintf("https://s.taobao.com/search?q=%s", item.params["title"])
+	//get content
+	loader := NewLoader()
+
+	content, err :=loader.Send(url, "Get", nil)
+
+	if err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
+		return
+	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+	fmt.Println(fmt.Sprintf("%s", ti.content))
+	return
+}
+
 func (ti *Tmall) CheckError(item *Item) bool {
 	if item.err != nil {
 		SpiderServer.qerror <- item

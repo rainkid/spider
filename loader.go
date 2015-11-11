@@ -138,10 +138,11 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 	l.method = strings.ToUpper(method)
 	l.data = data
 
+	var proxyUrl *url.URL
 	if l.useProxy {
 		proxyServerInfo := SpiderProxy.GetProxyServer()
 		if proxyServerInfo != nil {
-			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
+			proxyUrl, _ = url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			l.transport.Proxy = http.ProxyURL(proxyUrl)
 		}
 	}
@@ -158,7 +159,11 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy.", resp.StatusCode, l.url))
+	if (l.useProxy) {
+		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy [%s].", resp.StatusCode, l.url, proxyUrl))
+	} else {
+		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s]", resp.StatusCode, l.url))
+	}
 
 	if resp.StatusCode != 200 {
 		return nil, err
