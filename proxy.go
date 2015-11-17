@@ -83,7 +83,7 @@ func (sp *Proxy) Daemon() {
 			}
 			time.Sleep(time.Second * 1)
 			if sp.Count > 0 {
-				go sp.Check()
+				sp.Check()
 			}
 			time.Sleep(time.Second * 10 * 60)
 		}
@@ -107,16 +107,14 @@ func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
 
 }
 
-func (i *ProxyServerInfo) CheckTaobao(c chan bool) {
+func (i *ProxyServerInfo) CheckTaobao() {
 
 	start_ts := time.Now()
 	if (time.Now().Unix() - i.last_check) < 30*60 {
-		c <- false
 		return
 	}
 
 	if i.status {
-		c <- false
 		return
 	}
 
@@ -132,13 +130,11 @@ func (i *ProxyServerInfo) CheckTaobao(c chan bool) {
 
 	resp, err := client.Get("https://err.taobao.com/error1.html")
 	if err != nil {
-		c <- false
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		c <- false
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -149,10 +145,8 @@ func (i *ProxyServerInfo) CheckTaobao(c chan bool) {
 		i.status = true
 
 		SpiderLoger.I("Proxy :[", host, "] OK")
-		c <- true
 	} else {
 		i.status = false
-		c <- false
 	}
 }
 
@@ -163,13 +157,10 @@ func (sp *Proxy) Check() {
 		return
 	}
 
-	resp_chan := make(chan bool, 10)
-
 	for _, i := range sp.Servers {
-		go i.CheckTaobao(resp_chan)
+		go i.CheckTaobao()
 	}
 
-	<-resp_chan
 
 }
 

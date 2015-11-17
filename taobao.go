@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"math"
 	"strconv"
 	"strings"
 	"encoding/json"
@@ -12,8 +13,25 @@ import (
 
 type Taobao struct {
 	content []byte
-	json map[string]interface{}
+	json    map[string]interface{}
 }
+
+type SameItem struct {
+	Id           string `json:"id"`
+	Area         string `json:"area"`
+	Title        string `json:"title"`
+	Price        float64 `json:"price"`
+	Score        float64 `json:"score"`
+	PayNum       uint64 `json:"pay_num"`
+	PicUrl       string `json:"pic_url"`
+	Channel      string `json:"channel"`
+	Express      float64 `json:"express"`
+	SortScore    uint64    `json:"sortScore"`
+	ShopTitle    string `json:"shop_title"`
+	CommentNum   uint64 `json:"comment_num"`
+	ReservePrice float64 `json:"reserve_price"`
+}
+
 
 func (ti *Taobao) Item(item *Item) {
 	url := fmt.Sprintf("http://hws.m.taobao.com/cache/wdetail/5.0/?id=%s", item.params["id"])
@@ -30,13 +48,13 @@ func (ti *Taobao) Item(item *Item) {
 		return
 	}
 	//json praise
-	if  err := json.Unmarshal(ti.content, &ti.json); err != nil {
+	if err := json.Unmarshal(ti.content, &ti.json); err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
 		return
 	}
 
-	_,err = ti.CheckResponse(item)
+	_, err = ti.CheckResponse(item)
 
 	if err != nil {
 		item.err = err
@@ -53,17 +71,17 @@ func (ti *Taobao) Item(item *Item) {
 	return
 }
 
-func (ti *Taobao) CheckResponse(item *Item)(*Taobao, error ){
+func (ti *Taobao) CheckResponse(item *Item) (*Taobao, error) {
 
 	tmp := ti.json["ret"].([]interface{})
 	ret := tmp[0].(string)
-	if ret =="ERRCODE_QUERY_DETAIL_FAIL::宝贝不存在" {
+	if ret == "ERRCODE_QUERY_DETAIL_FAIL::宝贝不存在" {
 		item.err = errors.New(`not found`)
-		item.method="delete"
-		return ti,errors.New("not found");
+		item.method = "delete"
+		return ti, errors.New("not found");
 	}
-	item.method="post"
-	return ti,nil;
+	item.method = "post"
+	return ti, nil;
 }
 
 
@@ -71,21 +89,21 @@ func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 
 	data := ti.json["data"].(map[string]interface{})
 
-	itemInfoModel :=data["itemInfoModel"].(map[string]interface{})
-	seller :=data["seller"].(map[string]interface{})
-	apiStack := data["apiStack"].([]interface {})[0].(map[string]interface {})["value"]
+	itemInfoModel := data["itemInfoModel"].(map[string]interface{})
+	seller := data["seller"].(map[string]interface{})
+	apiStack := data["apiStack"].([]interface{})[0].(map[string]interface{})["value"]
 
-	var api_stack map[string]interface {}
-	stack_data:= []byte(apiStack.(string))
-	if  err := json.Unmarshal(stack_data, &api_stack); err != nil {
+	var api_stack map[string]interface{}
+	stack_data := []byte(apiStack.(string))
+	if err := json.Unmarshal(stack_data, &api_stack); err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
 		return ti
 	}
 
-	info := api_stack["data"].(map[string]interface {})["itemInfoModel"].(map[string]interface {})
-	priceUnits := info["priceUnits"].([]interface{})[0].(map[string]interface {})
-	price_byte :=[]byte(priceUnits["price"].(string))
+	info       := api_stack["data"].(map[string]interface{})["itemInfoModel"].(map[string]interface{})
+	priceUnits := info["priceUnits"].([]interface{})[0].(map[string]interface{})
+	price_byte := []byte(priceUnits["price"].(string))
 
 	var price float64
 	if bytes.Index(price_byte, []byte("-")) > 0 {
@@ -95,12 +113,12 @@ func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 		price, _ = strconv.ParseFloat(fmt.Sprintf("%s", price_byte), 64)
 	}
 
-	item.data["price"]              = fmt.Sprintf("%.2f", price)
-	item.data["title"]              = fmt.Sprintf("%s", itemInfoModel["title"])
-	item.data["favcount"]           = fmt.Sprintf("%s", itemInfoModel["favcount"])
-	item.data["img"]                = fmt.Sprintf("%s", itemInfoModel["picsPath"].([]interface{})[0])
+	item.data["price"] = fmt.Sprintf("%.2f", price)
+	item.data["title"] = fmt.Sprintf("%s", itemInfoModel["title"])
+	item.data["favcount"] = fmt.Sprintf("%s", itemInfoModel["favcount"])
+	item.data["img"] = fmt.Sprintf("%s", itemInfoModel["picsPath"].([]interface{})[0])
 	item.data["goodRatePercentage"] = fmt.Sprintf("%s", seller["goodRatePercentage"])
-	item.data["totalSoldQuantity"]  = fmt.Sprintf("%s", info["totalSoldQuantity"])
+	item.data["totalSoldQuantity"] = fmt.Sprintf("%s", info["totalSoldQuantity"])
 
 	return ti
 }
@@ -177,7 +195,7 @@ func (ti *Taobao) GetShopTitle(item *Item) *Taobao {
 	copy(ti.content, content)
 
 	htmlParser := NewHtmlParser()
-	
+
 	htmlParser.LoadData(ti.content).Replace()
 	shopname := htmlParser.FindByTagName("title")
 
@@ -237,6 +255,127 @@ func (ti *Taobao) GetShopImgs(item *Item) *Taobao {
 }
 
 func (ti *Taobao) SameStyle(item *Item) {
+	result := []SameItem{}
+	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", item.params["pid"], item.params["id"])
+
+	loader := NewLoader()
+	content, err := loader.WithPcAgent().WithProxy(false).Send(url, "Get", nil)
+
+	if err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
+		return
+	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+
+	htmlParser := NewHtmlParser()
+	htmlParser.LoadData(ti.content)
+	sub_content := htmlParser.Partten(`(?U)g_page_config\s+=\s+({.*})\;`).FindStringSubmatch()
+	if len(sub_content) < 2 {
+		return
+	}
+	//json parse
+	if err := json.Unmarshal(sub_content[1], &ti.json); err != nil {
+		return
+	}
+
+	mods := ti.json["mods"].(map[string]interface{})
+	//当前款
+	singleauction :=mods["singleauction"].(map[string]interface{})["data"].(map[string]interface{})
+	fmt.Println(singleauction)
+	current_reserve_price,_ :=strconv.ParseFloat(singleauction["reserve_price"].(string), 64)
+	current_view_price,_    :=strconv.ParseFloat(singleauction["view_price"].(string), 64)
+
+
+	items := mods["recitem"].(map[string]interface{})["data"].(map[string]interface{})["items"].([]interface{})
+	if len(items) < 2 {
+		item.err = errors.New(`Can't found same style goods`)
+		SpiderServer.qerror <- item
+		return
+	}
+	for _, row := range items {
+		v := row.(map[string]interface{})
+		s := SameItem{}
+		s.Id = v["nid"].(string)
+		s.Area = v["item_loc"].(string)
+		s.Title = v["title"].(string)
+		s.PicUrl = v["pic_url"].(string)
+		s.Channel = "taobao"
+		s.SortScore = 0
+		s.ShopTitle = v["nick"].(string)
+
+
+		//销量小于3的不要
+		view_sales := strings.Replace(v["view_sales"].(string), "人付款", "", -1)
+		s.PayNum, _ = strconv.ParseUint(view_sales, 0, 64)
+		if s.PayNum < 3 {
+			continue
+		}
+		//包邮+1
+		s.Express, _ = strconv.ParseFloat(v["view_fee"].(string), 64)
+		if s.Express == 0 {
+			s.SortScore += 1
+		}
+		//原价过滤
+		s.ReservePrice, _ = strconv.ParseFloat(v["reserve_price"].(string), 64)
+		if s.ReservePrice>current_reserve_price*1.5 ||s.ReservePrice<current_reserve_price*0.5{
+			continue
+		}
+		//现价过滤
+		s.Price, _ = strconv.ParseFloat(v["view_price"].(string), 64)
+		if s.Price>current_view_price*1.5 ||s.Price<current_view_price*0.5{
+			continue
+		}
+		//低价+2
+		if s.Price<current_view_price{
+			s.SortScore +=2
+		}
+		//评论+1
+		s.CommentNum, _ = strconv.ParseUint(v["comment_count"].(string), 0, 64)
+		if s.CommentNum > 0 {
+			s.SortScore += 1
+		}
+
+		//分值计算
+		var sum_score float64
+		dsr_scores := v["dsr_scores"].([]interface{})
+		for _, score := range dsr_scores {
+			f_score, _ := strconv.ParseFloat(score.(string), 64)
+			if f_score < 4.60 {
+				continue
+			}
+			sum_score += f_score
+		}
+		s.Score=Round(sum_score/3,2)
+		//如果三项平均分低于4.7,排除
+		if s.Score < 4.65 {
+			continue
+		}
+
+		//价格按低到高，加分10递减
+		istmall := strings.Contains(v["detail_url"].(string), "detail.tmall.com")
+		if istmall {
+			s.Channel = "tmall"
+			s.SortScore += 1
+		}
+
+		result = append(result, s)
+		if len(result) == 5 {
+			break
+		}
+	}
+	item.data["list"]   = result
+	item.data["nid"]    = item.params["id"]
+	item.data["unipid"] = item.params["pid"]
+	SpiderServer.qfinish <- item
+	return
+}
+func Round(f float64, n int) float64 {
+	pow10_n := math.Pow10(n)
+	return math.Trunc((f+0.5/pow10_n)*pow10_n) / pow10_n
+}
+func (ti *Taobao) SameStyleX(item *Item) {
 	var result []map[string]string
 	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", item.params["pid"], item.params["id"])
 
@@ -253,7 +392,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 
 	htmlParser := NewHtmlParser()
 
-	hp := htmlParser.LoadData(ti.content).Replace()
+	hp := htmlParser.LoadData(ti.content)
 	ret := hp.Partten(`(?U)"nid".*"pid_info"`).FindAllSubmatch()
 
 	l := len(ret) - 1
@@ -263,9 +402,9 @@ func (ti *Taobao) SameStyle(item *Item) {
 		return
 	}
 	var (
-		totalPrice      float64 = 0
-		totalCount      float64 = 0
-		avgPrice        float64 = 0
+		totalPrice float64 = 0
+		totalCount float64 = 0
+		avgPrice float64 = 0
 		uniquePricesArr []float64
 		pricesMap       map[float64]bool = make(map[float64]bool)
 	)
@@ -291,7 +430,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 	}
 	sort.Float64s(uniquePricesArr)
 	//计算平均价格
-	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
+	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice / totalCount), 64)
 	lret := len(ret)
 	for i := 1; i < l; i++ {
 		var sortScore = lret - i
@@ -331,7 +470,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 		data["price"] = fmt.Sprintf("%s", price[1])
 		//价格低于平均价格40%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
-		if p2 < avgPrice*0.4 {
+		if p2 < avgPrice * 0.4 {
 			// SpiderLoger.D(data["id"], "price len aveprice off 40%")
 			continue
 		}
@@ -392,8 +531,8 @@ func (ti *Taobao) SameStyle(item *Item) {
 		return
 	}
 	item.data["unipid"] = item.params["pid"]
-	item.data["nid"]    = item.params["id"]
-	item.data["list"]   = result
+	item.data["nid"] = item.params["id"]
+	item.data["list"] = result
 	SpiderServer.qfinish <- item
 	return
 }

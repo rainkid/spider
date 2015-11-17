@@ -63,7 +63,7 @@ func (s *Same) Item(item *Item) {
 	//	errors.New(string(content))
 	var dat map[string]interface{}
 	if err := json.Unmarshal(content, &dat); err != nil {
-		item.err = errors.New(fmt.Sprintf("parse json  error [%s]", item_url))
+		item.err = errors.New(fmt.Sprintf("parse json error [%s]", item_url))
 		SpiderServer.qerror <- item
 		return
 	}
@@ -77,7 +77,10 @@ func (s *Same) Item(item *Item) {
 	//	访问嵌套的值需要一系列的转化。
 	//http://www.huihui.cn/proxy?direct=&sid=237&&purl=http%3A%2F%2Fitem.gome.com.cn%2FA0005322918-pop8006172148.html
 	data := dat["data"].(map[string]interface{})
-	title := data["title"].(string)
+	var title string
+	if data["title"]!=nil{
+		title = data["title"].(string)
+	}
 
 	self := Info{}
 	self.Channel = item.params["channel"]
@@ -92,8 +95,6 @@ func (s *Same) Item(item *Item) {
 		SpiderServer.qfinish <- item
 		return
 	}
-
-	fmt.Println(len(other_quotes))
 
 	//解析商家信息，获取商家的请求地址
 	for _, value := range other_quotes {
@@ -188,7 +189,6 @@ func (i *Info) getItemId(mUrl string, channel_name string) error {
 		}
 		defer resp.Body.Close()
 		mUrl = fmt.Sprintf("%s", resp.Request.URL)
-		fmt.Println(mUrl)
 		i.ItemId = getGoodsId(`(\d+).html`)
 		break
 	case "1号店":
@@ -243,11 +243,9 @@ func (i *Info) parseData() error {
 		return errors.New("get fail")
 	}
 	data := dat["data"].(map[string]interface{})
-	title, ok := data["title"]
-	if ok {
-		i.Title = title.(string)
+	if data["title"] != nil {
+		i.Title = data["title"].(string)
 	}
-	i.Title = data["title"].(string)
 	price_history := data["price_history"].([]interface{})
 	for _, val := range price_history {
 		h := History{}

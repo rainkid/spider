@@ -52,7 +52,7 @@ func NewLoader() *Loader {
 func NewTransPort(timeout int) *http.Transport {
 	duration := time.Duration(timeout) * time.Second
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS10, InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{MaxVersion: tls.VersionTLS12, InsecureSkipVerify: true},
 		Dial: func(netw, addr string) (net.Conn, error) {
 			deadline := time.Now().Add(duration)
 			c, err := net.DialTimeout(netw, addr, duration)
@@ -94,6 +94,7 @@ func (l *Loader) WithPcAgent() *Loader {
 		"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36",
 		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/37.0.2062.94 Chrome/37.0.2062.94 Safari/537.36",
 		"Mozilla/5.0 (Windows; U; Windows NT 5.2) Gecko/2008070208 Firefox/3.0.1",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36",
 		"Mozilla/5.0 (Windows; U; Windows NT 5.2) AppleWebKit/525.13 (KHTML, like Gecko) Version/3.1 Safari/525.13",
 		"Mozilla/5.0 (Windows; U; Windows NT 5.2) AppleWebKit/525.13 (KHTML, like Gecko) Chrome/0.2.149.27 Safari/525.13",
 	}
@@ -150,14 +151,12 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 		CheckRedirect: l.CheckRedirect,
 		Transport:     l.transport,
 	}
-
 	l.GetRequest()
 	resp, err := l.client.Do(l.request)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if l.useProxy {
 		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy [%s].", resp.StatusCode, l.url, proxy_addr))
 	} else {
