@@ -24,7 +24,8 @@ type ProxyServerInfo struct {
 }
 
 type Proxy struct {
-	Servers map[int]*ProxyServerInfo
+	Rows    map[int]*ProxyServerInfo
+	Checked []*ProxyServerInfo
 	Count   int
 }
 
@@ -92,31 +93,29 @@ func (sp *Proxy) Daemon() {
 
 func (sp *Proxy) DelProxyServer(index int) {
 	SpiderLoger.D("delete proxyserver", index)
-	delete(sp.Servers, index)
+	delete(sp.Rows, index)
 }
 
 func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
-	if proxyNum == 0 {
+	count := len(sp.Checked)
+	if count == 0 {
 		return nil
 	}
-	num := utils.RandInt(0, proxyNum)
-	if !sp.Servers[num].status {
-		return sp.GetProxyServer()
-	}
-	return sp.Servers[num]
+	num := utils.RandInt(0, count-1)
+	return sp.Checked[num]
 
 }
 
-func (i *ProxyServerInfo) CheckTaobao() {
+func (i *ProxyServerInfo) CheckTaobao()bool {
 
 	start_ts := time.Now()
 	if (time.Now().Unix() - i.last_check) < 30*60 {
-		return
+		if i.status{
+			return true
+		}
+		return false
 	}
 
-	if i.status {
-		return
-	}
 
 	i.last_check = time.Now().Unix()
 	var timeout = time.Duration(30 * time.Second)
@@ -130,11 +129,12 @@ func (i *ProxyServerInfo) CheckTaobao() {
 
 	resp, err := client.Get("https://err.taobao.com/error1.html")
 	if err != nil {
-		return
+		return false
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		return false
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -143,25 +143,55 @@ func (i *ProxyServerInfo) CheckTaobao() {
 	if strings.Contains(string(body), "alibaba.com") {
 		i.rate = float64(time_diff) / 1e9
 		i.status = true
-
 		SpiderLoger.I("Proxy :[", host, "] OK")
+		return true
 	} else {
 		i.status = false
+		return false
 	}
 }
 
 func (sp *Proxy) Check() {
 
+	count := len(sp.Rows)
 	SpiderLoger.I("Start checking proxys")
-	if sp.Count < 1 {
+	if count < 1 {
 		return
 	}
 
-	for _, i := range sp.Servers {
-		go i.CheckTaobao()
+	jobs := make(chan *ProxyServerInfo, count)
+	done := make(chan bool)
+
+	go func() {
+		for {
+			j, more := <-jobs
+			if more {
+				j.CheckTaobao()
+//				fmt.Println("received jobs",j.host,j.port)
+			} else {
+//				fmt.Println("received all jobs")
+				done <- true
+				return
+			}
+		}
+	}()
+
+	for _,i := range sp.Rows {
+		jobs <- i
+//		fmt.Println("sent job", i)
 	}
+	close(jobs)
+//	fmt.Println("sent all jobs")
+	//We await the worker using the synchronization approach we saw earlier.
+	<-done
+	sp.Checked=[]*ProxyServerInfo{}
+	for _,i:= range sp.Rows {
 
-
+		fmt.Println(i.status)
+		if i.status{
+			sp.Checked = append(sp.Checked,i)
+		}
+	}
 }
 
 func (sp *Proxy) kuai(proxyUrl string) {
@@ -178,19 +208,19 @@ func (sp *Proxy) kuai(proxyUrl string) {
 
 	htmlParser := NewHtmlParser()
 
-	hp := htmlParser.LoadData(mcontent).Replace().CleanScript()
-	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td>\s<td>(\d+)</td>`).FindAllSubmatch()
+	hp := htmlParser.LoadData(mcontent)
+	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td>\s+<td>(\d+)</td>`).FindAllSubmatch()
 	l := len(trs)
 	if l == 0 {
 		SpiderLoger.E("load proxy data from " + proxyUrl + " error. ")
 		return
 	}
 	if proxyNum == 0 {
-		sp.Servers = make(map[int]*ProxyServerInfo)
+		sp.Rows = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
 		ip, port := string(trs[i][1]), string(trs[i][2])
-		sp.Servers[proxyNum] = &ProxyServerInfo{id: proxyNum, host: ip, port: port}
+		sp.Rows[proxyNum] = &ProxyServerInfo{id: proxyNum, host: ip, port: port}
 		proxyNum++
 	}
 	sp.Count = proxyNum
@@ -225,7 +255,7 @@ func (sp *Proxy) Xici(proxyUrl string) {
 	}
 
 	if proxyNum == 0 {
-		sp.Servers = make(map[int]*ProxyServerInfo)
+		sp.Rows = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
 		area, ip, port, anonymous, style, rate, _ := string(trs[i][1]), string(trs[i][2]), string(trs[i][3]), string(trs[i][4]), string(trs[i][5]), string(trs[i][6]), string(trs[i][7])
@@ -240,7 +270,7 @@ func (sp *Proxy) Xici(proxyUrl string) {
 		info.anonymous = (anonymous == "高匿")
 		info.style = style_map[strings.ToLower(style)]
 		info.area = strings.ToLower(area)
-		sp.Servers[proxyNum] = &info
+		sp.Rows[proxyNum] = &info
 		proxyNum++
 	}
 	if proxyNum <= 5 {
@@ -271,7 +301,7 @@ func (sp *Proxy) Load(proxyUrl string) {
 		return
 	}
 	if proxyNum == 0 {
-		sp.Servers = make(map[int]*ProxyServerInfo)
+		sp.Rows = make(map[int]*ProxyServerInfo)
 	}
 	for i := 0; i < l; i++ {
 		ip, port := string(trs[i][1]), string(trs[i][2])

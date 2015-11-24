@@ -23,7 +23,7 @@ type SameItem struct {
 	Price        float64 `json:"price"`
 	Score        float64 `json:"score"`
 	PayNum       uint64 `json:"pay_num"`
-	PicUrl       string `json:"pic_url"`
+	Img          string `json:"img"`
 	Channel      string `json:"channel"`
 	Express      float64 `json:"express"`
 	SortScore    uint64    `json:"sortScore"`
@@ -300,7 +300,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 		s.Id = v["nid"].(string)
 		s.Area = v["item_loc"].(string)
 		s.Title = v["title"].(string)
-		s.PicUrl = v["pic_url"].(string)
+		s.Img = v["pic_url"].(string)
 		s.Channel = "taobao"
 		s.SortScore = 0
 		s.ShopTitle = v["nick"].(string)

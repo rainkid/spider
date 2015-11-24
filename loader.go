@@ -125,7 +125,7 @@ func (l *Loader) GetRequest() {
 
 func (l *Loader) Close() {
 	if l.transport != nil {
-		SpiderLoger.D("Loader closed request [", l.url, "]")
+		SpiderLoger.D("[closed]:(", l.url, ")")
 		l.transport.CloseIdleConnections()
 		l.transport.CancelRequest(l.request)
 	}

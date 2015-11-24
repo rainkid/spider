@@ -29,9 +29,9 @@ type Item struct {
 
 func NewSpider() *Spider {
 	SpiderServer = &Spider{
-		qstart:  make(chan *Item),
-		qfinish: make(chan *Item),
-		qerror:  make(chan *Item),
+		qstart:  make(chan *Item,1),
+		qfinish: make(chan *Item,1),
+		qerror:  make(chan *Item,1),
 	}
 	return SpiderServer
 }
@@ -132,13 +132,14 @@ func (spider *Spider) Finish(item *Item) {
 		SpiderLoger.E("Callback with error", err.Error())
 		return
 	}
-	SpiderLoger.I("Success callback with", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
+	SpiderLoger.I("-- callback --", fmt.Sprintf("tag:<%s> params:%v", item.tag, item.params))
 	return
 }
 
 func (spider *Spider) Add(tag string, params map[string]string) {
 	item := &Item{
 		tag:      tag,
+		method:   tag,
 		params:   params,
 		tryTimes: 0,
 		data:     make(map[string]interface{}),

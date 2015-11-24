@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 )
 
 type Same struct {
@@ -21,7 +22,7 @@ type Info struct {
 	ItemId  string
 	Title   string
 	Price   string
-	Url     string
+	ItemUrl string
 	History []History
 }
 
@@ -41,10 +42,13 @@ type History struct {
 
 func (s *Same) Item(item *Item) {
 
-	detail_url := getUrlString(item.params["channel"], item.params["id"])
-	item_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(detail_url)
+	self := Info{
+		Channel:item.params["channel"],
+		ItemId:item.params["id"],
+	}
+	self.getItemUrl()
 
-	if item_url == "" {
+	if self.ItemUrl == "" {
 		item.err = errors.New("get item url error")
 		SpiderServer.qerror <- item
 		return
@@ -52,42 +56,43 @@ func (s *Same) Item(item *Item) {
 
 	//get content
 	loader := NewLoader()
-
-	content, err := loader.Send(item_url, "Get", nil)
+	hui_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(self.ItemUrl)
+	content, err := loader.Send(hui_url, "Get", nil)
 	if err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
 		return
 	}
 
-	//	errors.New(string(content))
+	//	解析json
 	var dat map[string]interface{}
 	if err := json.Unmarshal(content, &dat); err != nil {
-		item.err = errors.New(fmt.Sprintf("parse json error [%s]", item_url))
+		item.err = errors.New(fmt.Sprintf("parse json error [%s]", hui_url))
 		SpiderServer.qerror <- item
 		return
 	}
-	//	为了使用解码 map 中的值，我们需要将他们进行适当的类型转换。例如这里我们将 num 的值转换成 float64类型。
+	//	判断状态
 	succ := dat["status"].(string)
 	if succ != "succ" {
 		item.err = errors.New("request error")
 		SpiderServer.qerror <- item
 		return
 	}
-	//	访问嵌套的值需要一系列的转化。
-	//http://www.huihui.cn/proxy?direct=&sid=237&&purl=http%3A%2F%2Fitem.gome.com.cn%2FA0005322918-pop8006172148.html
+	//  获取标题
 	data := dat["data"].(map[string]interface{})
 	var title string
-	if data["title"]!=nil{
+	if data["title"] != nil {
 		title = data["title"].(string)
 	}
 
-	self := Info{}
-	self.Channel = item.params["channel"]
-	self.ItemId = item.params["id"]
-	self.Url = item_url
 	self.parseData()
-	s.items = append(s.items, self)
+	if len(self.History)>1 {
+		self.Price=self.History[len(self.History)-1].Price
+	}
+
+	if self.Price!=""{
+		s.items = append(s.items, self)
+	}
 
 	other_quotes := data["other_quotes"].([]interface{})
 	if len(other_quotes) == 0 {
@@ -99,37 +104,65 @@ func (s *Same) Item(item *Item) {
 	//解析商家信息，获取商家的请求地址
 	for _, value := range other_quotes {
 		merchant := value.(map[string]interface{})
+
+		info := Info{}
+		//获取商品平台
+		info.getChannel(merchant["merchant_name"].(string))
+		//未获取以及当前平台则跳过
+		if info.Channel==""||info.Channel==self.Channel{
+			continue
+		}
+		info.Price = merchant["price"].(string)
 		u, err := url.Parse(merchant["purchase_url"].(string))
 		if err != nil {
 			continue
 		}
 
+		info.Title = title
 		m, _ := url.ParseQuery(u.RawQuery)
-
+		item_url := merchant["purchase_url"].(string)
 		purl, ok := m["purl"]
-		item_url = merchant["purchase_url"].(string)
 		if ok {
 			item_url = purl[0]
 		}
-		info := Info{}
+		// 苏宁搜索
+		if info.Channel=="suning"{
+			resp, err := http.Head(item_url)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+			item_url = fmt.Sprintf("%s", resp.Request.URL)
+		}
 
-		info.Title = title
-		//获取商品id
-		err = info.getItemId(item_url, merchant["merchant_name"].(string))
-		if err != nil {
-			errors.New("get channel error")
-			continue
+		info.getItemId(item_url)
+		// 爱淘宝搜素
+		if info.Channel=="taobao" && info.ItemId==""{
+			s := &Search{}
+			s.keyword = info.Title
+			s.price = self.Price
+			s.Taobao()
+			if s.item_id==""{
+				continue
+			}
+			info.ItemId = s.item_id
 		}
-		if info.Channel == item.params["channel"] {
-			continue
-		}
+
+		info.getItemUrl()
 		err = info.parseData()
 		if err != nil {
 			errors.New("parse data channel error")
 			continue
 		}
+		item_price,_ := strconv.ParseFloat(info.Price,64)
+		if len(info.History)>1 && item_price==0{
+			info.Price=info.History[len(info.History)-1].Price
+		}
 
-		info.Price = merchant["price"].(string)
+		if info.Price!=""{
+			s.items = append(s.items, info)
+		}
+
 		s.items = append(s.items, info)
 	}
 	item.data["data"] = s.items
@@ -138,9 +171,9 @@ func (s *Same) Item(item *Item) {
 	return
 }
 
-func getUrlString(channel_name string, item_id string) string {
+func (i *Info)getItemUrl() {
 
-	detail_urls := map[string]string{
+	item_urls := map[string]string{
 		"jd":     "http://m.jd.com/product/%s.html",
 		"yhd":    "http://www.yihaodian.com/item/%s",
 		"gome":   "http://item.gome.com.cn/%s.html",
@@ -150,91 +183,81 @@ func getUrlString(channel_name string, item_id string) string {
 		"amazon": "http://www.amazon.cn/gp/aw/d/%s",
 	}
 
-	detail_url, ok := detail_urls[channel_name]
+	item_url, ok := item_urls[i.Channel]
 	if !ok {
-		return ""
+		return
 	}
 
-	detail_url = fmt.Sprintf(detail_url, item_id)
-	return detail_url
+	item_url = fmt.Sprintf(item_url, i.ItemId)
+	i.ItemUrl = item_url
+	return
 }
 
-func (i *Info) getItemId(mUrl string, channel_name string) error {
-	// 易迅商城 国美在线 1号店 苏宁易购 天猫 淘宝网
-	//	京东，淘宝，1号店，苏宁，国美，亚马逊
-	var getGoodsId = func(pattern string) string {
-		regex, _ := regexp.Compile(pattern)
-		id := regex.FindStringSubmatch(mUrl)
-		if id == nil {
-			return ""
-		}
-		return id[0]
+func (i *Info)getChannel(channel_name string) {
+
+	 channels := map[string]string{
+		"京东商城":"jd",
+		"淘宝网":"taobao",
+		"国美在线":"gome",
+		"苏宁易购":"suning",
+		"1号店":"yhd",
+		"天猫":"tmall",
+		"亚马逊":"amazon",
 	}
 
-	switch channel_name {
-	case "京东商城":
-		i.Channel = "jd"
-		i.ItemId = getGoodsId(`(\d+).html`)
-		break
-	case "国美在线":
-		return errors.New("gome not support")
-		i.Channel = "gome"
-		i.ItemId = getGoodsId(`([\w-]+).html`)
-		break
-	case "苏宁易购":
-		i.Channel = "suning"
-		resp, err := http.Head(mUrl)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		mUrl = fmt.Sprintf("%s", resp.Request.URL)
-		i.ItemId = getGoodsId(`(\d+).html`)
-		break
-	case "1号店":
-		i.Channel = "yhd"
-		i.ItemId = getGoodsId(`(\d+)$`)
-		break
-	case "天猫":
-		i.Channel = "tmall"
-		i.ItemId = getGoodsId(`i(\d+).htm`)
-		break
-	case "亚马逊":
-		return errors.New("amazon not support")
-		i.Channel = "amazon"
-		i.ItemId = getGoodsId(`\/d\/(\w+)`)
-		break
-	case "淘宝网":
-		s := &Search{}
-		s.keyword = i.Title
-		s.Taobao()
-		i.Channel = "taobao"
-		mUrl = getUrlString("taobao", s.item_id)
-		break
-	default:
-		return errors.New("not support")
+	channel, ok := channels[channel_name]
+	if !ok {
+		return
 	}
-	if i.ItemId == "" {
-		return errors.New("get item error")
+	i.Channel=channel
+	return
+}
+func (i *Info)getItemId(detail_url string) {
+	patterns:= map[string]string{
+		"jd":`(\d+).html`,
+		"gome":`([\w]+)-.*.html`,
+		"suning":`(\d+).html`,
+		"yhd":`(\d+)$`,
+		"tmall":`i(\d+).htm`,
+		"taobao":`id=(\d+)`,
+		"amazon":`\/d\/(\w+)`,
 	}
-	full_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(mUrl)
-	i.Url = full_url
-	return nil
+
+	pattern, ok := patterns[i.Channel]
+	if !ok {
+		return
+	}
+	regex, _ := regexp.Compile(pattern)
+	id := regex.FindStringSubmatch(detail_url)
+	if id == nil {
+		return
+	}
+	i.ItemId=id[0]
+	return
+}
+
+
+
+func (i *Info) execute(mUrl string, channel_name string) {
+	// 易迅商城 国美在线 1号店 苏宁易购 天猫 淘宝网
+	//	京东，淘宝，1号店，苏宁，国美，亚马逊
+
+
 }
 
 //根据平台的URL获取相应的历史价格
 func (i *Info) parseData() error {
 
 	loader := NewLoader()
-
-	content, err := loader.Send(i.Url, "Get", nil)
+	full_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(i.ItemUrl)
+	content, err := loader.Send(full_url, "Get", nil)
 	if err != nil {
 		return errors.New("request error")
 	}
 
 	var dat map[string]interface{}
 	if err := json.Unmarshal(content, &dat); err != nil {
-		return errors.New("parse json error")
+		return errors.New("parse same json error")
 	}
 	//	为了使用解码 map 中的值，我们需要将他们进行适当的类型转换。例如这里我们将 num 的值转换成 float64类型。
 	status := dat["status"].(string)

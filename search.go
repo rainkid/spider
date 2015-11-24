@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"encoding/json"
+	"strconv"
 )
 
 type Search struct {
@@ -12,6 +13,7 @@ type Search struct {
 	json map[string]interface{}
 	keyword string
 	item_id string
+	price   string
 }
 
 type Row struct {
@@ -32,13 +34,11 @@ func (a RowByBiz) Less(i, j int) bool { return a[i].Biz > a[j].Biz }
 
 func (ti *Search) Taobao() {
 	url  := fmt.Sprintf("http://ai.taobao.com/search/index.htm?source_id=search&key=%s", ti.keyword)
-	fmt.Println(url)
 	//get content
 	loader := NewLoader()
 	content, err := loader.WithPcAgent().Send(url, "Get", nil)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
-//	fmt.Println(string(content))
 	if err != nil {
 		return
 	}
@@ -46,7 +46,6 @@ func (ti *Search) Taobao() {
 	htmlParser := NewHtmlParser()
 	htmlParser.LoadData(ti.content).Convert().CleanScript().Replace()
 	sub_content := htmlParser.Partten(`(?U)_pageResult\s+=\s+({.*})\;`).FindStringSubmatch()
-	fmt.Println(len(sub_content))
 	if len(sub_content)<2 {
 		return
 	}
@@ -75,6 +74,10 @@ func (ti *Search) Taobao() {
 		r  := Row{}
 		r.ItemId    =fmt.Sprintf("%.0f",row["itemId"].(float64))
 		r.RealPrice =row["realPrice"].(float64)
+		org_price,_ :=strconv.ParseFloat(ti.price,64)
+		if org_price*1.5<r.RealPrice||org_price*0.5>r.RealPrice{
+			continue
+		}
 
 		r.SaleCount =int(row["saleCount"].(float64))
 		r.Biz       =int(row["biz30Day"].(float64))
