@@ -1,42 +1,40 @@
 package spider
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 type Search struct {
 	content []byte
-	json map[string]interface{}
-	keyword string
+	url     string
 	item_id string
 	price   string
 }
 
 type Row struct {
-	ItemId    string
-	Title     string
-	RealPrice float64
-	Biz       int
-	SaleCount int
+	ItemId       string
+	Title        string
+	view_price   float64
+	Biz          int
+	SaleCount    int
 	FreeShipping bool
 }
 
 type rows  []Row
 type RowByBiz  []Row
 
-func (a RowByBiz) Len() int           { return len(a) }
-func (a RowByBiz) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a RowByBiz) Len() int { return len(a) }
+func (a RowByBiz) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a RowByBiz) Less(i, j int) bool { return a[i].Biz > a[j].Biz }
 
 func (ti *Search) Taobao() {
-	url  := fmt.Sprintf("http://ai.taobao.com/search/index.htm?source_id=search&key=%s", ti.keyword)
 	//get content
 	loader := NewLoader()
-	content, err := loader.WithPcAgent().Send(url, "Get", nil)
+	content, err := loader.WithPcAgent().Send(ti.url, "Get", nil)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 	if err != nil {
@@ -44,46 +42,51 @@ func (ti *Search) Taobao() {
 	}
 
 	htmlParser := NewHtmlParser()
-	htmlParser.LoadData(ti.content).Convert().CleanScript().Replace()
-	sub_content := htmlParser.Partten(`(?U)_pageResult\s+=\s+({.*})\;`).FindStringSubmatch()
-	if len(sub_content)<2 {
+	htmlParser.LoadData(ti.content)
+	sub_content := htmlParser.Partten(`(?U)g_page_config\s+=\s+({.*})\;`).FindStringSubmatch()
+
+	if len(sub_content) < 2 {
+		fmt.Println("get taobao search list error")
 		return
 	}
+	var data_json map[string]interface{}
 	//json parse
-	if  err := json.Unmarshal(sub_content[1], &ti.json); err != nil {
+	if err := json.Unmarshal(sub_content[1], &data_json); err != nil {
+		fmt.Println("parse taobao search json error")
 		return
 	}
 
-	data := ti.json["result"].(map[string]interface{})
-	auction := data["auction"].([]interface{})
+	auction := data_json["mods"].(map[string]interface{})["itemlist"].(map[string]interface{})["data"].(map[string]interface{})["auctions"].([]interface{})
 
-	if len(auction)<1 {
+	if len(auction) < 1 {
+		fmt.Println("get taobao search auction error")
 		return
 	}
 
 	rows := rows{}
-	for _,val :=range auction  {
+	for _, val := range auction {
 		row := val.(map[string]interface{})
-		if(row["tagType"].(string)=="1"){
+		if (row["shopcard"].(map[string]interface{})["isTmall"] == "true") {
 			continue
 		}
 		//排除月销量为0的商家
-		if row["biz30Day"].(float64)==0 {
+		r := Row{}
+		r.ItemId = row["nid"].(string)
+		view_price := row["view_price"].(string)
+		view_price_float64, _ := strconv.ParseFloat(view_price, 64)
+		org_price, _ := strconv.ParseFloat(ti.price, 64)
+		if org_price * 1.5 < view_price_float64 || org_price * 0.5 > view_price_float64 {
 			continue
 		}
-		r  := Row{}
-		r.ItemId    =fmt.Sprintf("%.0f",row["itemId"].(float64))
-		r.RealPrice =row["realPrice"].(float64)
-		org_price,_ :=strconv.ParseFloat(ti.price,64)
-		if org_price*1.5<r.RealPrice||org_price*0.5>r.RealPrice{
-			continue
-		}
+		r.view_price = view_price_float64
+		biz_str := row["view_sales"].(string)
+		biz := strings.Replace(biz_str, "人付款", "", -1)
+		biz_num, _ := strconv.ParseFloat(biz, 64)
+		r.Biz = int(biz_num)
 
-		r.SaleCount =int(row["saleCount"].(float64))
-		r.Biz       =int(row["biz30Day"].(float64))
-		rows = append(rows,r)
+		rows = append(rows, r)
 	}
-	if len(rows)<1 {
+	if len(rows) < 1 {
 		return
 	}
 	sort.Sort(RowByBiz(rows))
@@ -91,15 +94,61 @@ func (ti *Search) Taobao() {
 	return
 }
 
-func (ti *Search) CheckResponse(item *Item)(*Search, error ){
-
-	tmp := ti.json["ret"].([]interface{})
-	ret := tmp[0].(string)
-	if ret =="ERRCODE_QUERY_DETAIL_FAIL::宝贝不存在" {
-		item.err = errors.New(`not found`)
-		item.method="delete"
-		return ti,errors.New("not found");
+func (ti *Search) AiTaobao() {
+	//get content
+	loader := NewLoader()
+	content, err := loader.WithPcAgent().Send(ti.url, "Get", nil)
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+	if err != nil {
+		return
 	}
-	item.method="post"
-	return ti,nil;
+
+	htmlParser := NewHtmlParser()
+	htmlParser.LoadData(ti.content)
+	sub_content := htmlParser.Partten(`(?U)_pageResult\s+=\s+({.*})\;`).FindStringSubmatch()
+	if len(sub_content) < 2 {
+		return
+	}
+	var data_json map[string]interface{}
+	//json parse
+	if err := json.Unmarshal(sub_content[1], &data_json); err != nil {
+		return
+	}
+
+	auction := data_json["result"].(map[string]interface{})["auction"].([]interface{})
+
+	if len(auction) < 1 {
+		return
+	}
+
+	rows := rows{}
+	for _, val := range auction {
+		row := val.(map[string]interface{})
+		if (row["tagType"].(string) == "1") {
+			continue
+		}
+		//排除月销量为0的商家
+		if row["biz30Day"].(float64) == 0 {
+			continue
+		}
+		r := Row{}
+		r.ItemId = fmt.Sprintf("%.0f", row["itemId"].(float64))
+		r.view_price = row["realPrice"].(float64)
+		org_price, _ := strconv.ParseFloat(ti.price, 64)
+		if org_price * 1.5 < r.view_price || org_price * 0.5 > r.view_price {
+			continue
+		}
+
+		r.SaleCount = int(row["saleCount"].(float64))
+		r.Biz = int(row["biz30Day"].(float64))
+		rows = append(rows, r)
+	}
+	if len(rows) < 1 {
+		return
+	}
+	sort.Sort(RowByBiz(rows))
+	ti.item_id = rows[0].ItemId
+	return
 }
+

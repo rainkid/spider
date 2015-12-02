@@ -65,24 +65,24 @@ func (s *Same) Item(item *Item) {
 	}
 
 	//	解析json
-	var dat map[string]interface{}
-	if err := json.Unmarshal(content, &dat); err != nil {
+	var data_json map[string]interface{}
+	if err := json.Unmarshal(content, &data_json); err != nil {
 		item.err = errors.New(fmt.Sprintf("parse json error [%s]", hui_url))
 		SpiderServer.qerror <- item
 		return
 	}
 	//	判断状态
-	succ := dat["status"].(string)
+	succ := data_json["status"].(string)
 	if succ != "succ" {
 		item.err = errors.New("request error")
 		SpiderServer.qerror <- item
 		return
 	}
 	//  获取标题
-	data := dat["data"].(map[string]interface{})
+	data_json = data_json["data"].(map[string]interface{})
 	var title string
-	if data["title"] != nil {
-		title = data["title"].(string)
+	if data_json["title"] != nil {
+		title = data_json["title"].(string)
 	}
 
 	self.parseData()
@@ -94,7 +94,7 @@ func (s *Same) Item(item *Item) {
 		s.items = append(s.items, self)
 	}
 
-	other_quotes := data["other_quotes"].([]interface{})
+	other_quotes := data_json["other_quotes"].([]interface{})
 	if len(other_quotes) == 0 {
 		item.data["data"] = s.items
 		SpiderServer.qfinish <- item
@@ -129,23 +129,30 @@ func (s *Same) Item(item *Item) {
 		if info.Channel=="suning"{
 			resp, err := http.Head(item_url)
 			if err != nil {
-				return
+				continue
 			}
 			defer resp.Body.Close()
 			item_url = fmt.Sprintf("%s", resp.Request.URL)
 		}
 
+		//
+		if info.Channel=="amazon"{
+			purl, ok := m["location"]
+			if ok {
+				item_url = purl[0]
+			}
+		}
 		info.getItemId(item_url)
 		// 爱淘宝搜素
 		if info.Channel=="taobao" && info.ItemId==""{
-			s := &Search{}
-			s.keyword = info.Title
-			s.price = self.Price
-			s.Taobao()
-			if s.item_id==""{
+			ts := &Search{}
+			ts.url = item_url
+			ts.price = self.Price
+			ts.Taobao()
+			if ts.item_id==""{
 				continue
 			}
-			info.ItemId = s.item_id
+			info.ItemId = ts.item_id
 		}
 
 		info.getItemUrl()
@@ -159,8 +166,8 @@ func (s *Same) Item(item *Item) {
 			info.Price=info.History[len(info.History)-1].Price
 		}
 
-		if info.Price!=""{
-			s.items = append(s.items, info)
+		if info.Price==""{
+			continue
 		}
 
 		s.items = append(s.items, info)
@@ -217,7 +224,7 @@ func (i *Info)getItemId(detail_url string) {
 		"jd":`(\d+).html`,
 		"gome":`([\w]+)-.*.html`,
 		"suning":`(\d+).html`,
-		"yhd":`(\d+)$`,
+		"yhd":`item/(\d+)`,
 		"tmall":`i(\d+).htm`,
 		"taobao":`id=(\d+)`,
 		"amazon":`\/d\/(\w+)`,
@@ -232,7 +239,7 @@ func (i *Info)getItemId(detail_url string) {
 	if id == nil {
 		return
 	}
-	i.ItemId=id[0]
+	i.ItemId=id[1]
 	return
 }
 

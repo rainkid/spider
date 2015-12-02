@@ -47,8 +47,8 @@ func (ti *Jd) Item(item *Item) {
 func (ti *Jd) GetItemTitle(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
-	htmlParser.LoadData(ti.content).CleanScript().Replace()
-	title := htmlParser.Partten(`(?U)<meta name="keywords" CONTENT="(.*)">`).FindStringSubmatch()
+	htmlParser.LoadData(ti.content)
+	title := htmlParser.Partten(`(?U)class="title-text">(.*)\s+<i`).FindStringSubmatch()
 
 	if title == nil {
 		item.err = errors.New(`get title error`)
@@ -77,7 +77,7 @@ func (ti *Jd) GetItemImg(item *Item) *Jd {
 
 	hp := htmlParser.LoadData(ti.content)
 
-	img := hp.Partten(`(?U)<img class="unit-pic J_ping".*src="(.*)">`).FindStringSubmatch()
+	img := hp.Partten(`(?U)<img.*src="(.*)" class="J_ping"`).FindStringSubmatch()
 
 	if img == nil {
 		item.err = errors.New(`get img error`)

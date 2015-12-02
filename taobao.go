@@ -282,19 +282,34 @@ func (ti *Taobao) SameStyle(item *Item) {
 
 	mods := ti.json["mods"].(map[string]interface{})
 	//当前款
-	singleauction :=mods["singleauction"].(map[string]interface{})["data"].(map[string]interface{})
-	fmt.Println(singleauction)
-	current_reserve_price,_ :=strconv.ParseFloat(singleauction["reserve_price"].(string), 64)
-	current_view_price,_    :=strconv.ParseFloat(singleauction["view_price"].(string), 64)
+	single, ok := mods["singleauction"].(map[string]interface{})["data"]
+	var current_reserve_price,current_view_price float64
+	if ok {
+		singleauction :=single.(map[string]interface{})
+		current_reserve_price,_=strconv.ParseFloat(singleauction["reserve_price"].(string), 64)
+		current_view_price,_   =strconv.ParseFloat(singleauction["view_price"].(string), 64)
+	}
 
+	data,ok :=mods["recitem"].(map[string]interface{})["data"]
+	if !ok {
+		item.err = errors.New(`Having none same style goods`)
+		SpiderServer.qerror <- item
+		return
+	}
+	items,ok := data.(map[string]interface{})["items"]
+	if !ok {
+		item.err = errors.New(`Having none same style goods`)
+		SpiderServer.qerror <- item
+		return
+	}
 
-	items := mods["recitem"].(map[string]interface{})["data"].(map[string]interface{})["items"].([]interface{})
-	if len(items) < 2 {
+	rows := items.([]interface{})
+	if len(rows) < 2 {
 		item.err = errors.New(`Can't found same style goods`)
 		SpiderServer.qerror <- item
 		return
 	}
-	for _, row := range items {
+	for _, row := range rows {
 		v := row.(map[string]interface{})
 		s := SameItem{}
 		s.Id = v["nid"].(string)

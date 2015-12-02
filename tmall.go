@@ -13,38 +13,8 @@ type Tmall struct {
 }
 
 func (ti *Tmall) Item(item *Item) {
-	url := fmt.Sprintf("http://detail.m.tmall.com/item.htm?id=%s", item.params["id"])
-
-	//get content
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
-
-	if err != nil {
-		item.err = err
-		SpiderServer.qerror <- item
-		return
-	}
-	ti.content = make([]byte, len(content))
-	copy(ti.content, content)
-
-	htmlParser := NewHtmlParser()
-
-	htmlParser.LoadData(ti.content).Convert().Replace()
-
-	if ti.GetItemTitle(item).CheckError(item) {
-		return
-	}
-	//check price
-	if ti.GetItemPrice(item).CheckError(item) {
-		return
-	}
-	if ti.GetItemImg(item).CheckError(item) {
-		return
-	}
-	// fmt.Println(item.data)
-	SpiderServer.qfinish <- item
-	return
+	tb:=Taobao{}
+	tb.Item(item)
 }
 
 func (ti *Tmall) GetItemTitle(item *Item) *Tmall {
