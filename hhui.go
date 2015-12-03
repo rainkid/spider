@@ -33,7 +33,7 @@ func (h *Hhui) Item(item *Item) {
 	self.getItemUrl()
 
 	if self.ItemUrl == "" {
-		item.err = errors.New("get item url error")
+		item.err = errors.New("get sense url error")
 		SpiderServer.qerror <- item
 		return
 	}
@@ -46,13 +46,16 @@ func (h *Hhui) Item(item *Item) {
 	loader := NewLoader()
 	content, err := loader.Send(SenseUrl, "Get", nil)
 	if err != nil {
+		item.err = errors.New("get sense content error")
+		SpiderServer.qerror <- item
 		return
 	}
-
 
 	//	解析json
 	var data_json map[string]interface{}
 	if err := json.Unmarshal(content, &data_json); err != nil {
+		item.err = errors.New("parse sense content error")
+		SpiderServer.qerror <- item
 		return
 	}
 	//	判断状态
@@ -91,41 +94,6 @@ func (h *Hhui) Item(item *Item) {
 	return
 }
 
-
-func Itemx() {
-	item_url := "http://item.jd.com/1510479.html"
-	title := "创维(Skyworth) 42E5ERS 42英寸 高清LED窄边平板液晶电视(银色)"
-	url_str := GetSenseUrl(item_url, title)
-
-	loader := NewLoader()
-	content, err := loader.Send(url_str, "Get", nil)
-	if err != nil {
-		return
-	}
-
-	//	解析json
-	var data_json map[string]interface{}
-	if err := json.Unmarshal(content, &data_json); err != nil {
-		return
-	}
-	//	判断状态
-	thisItem := data_json["thisItem"].(map[string]interface{})
-	list := data_json["urlPriceList"].([]interface{})
-
-	for _, val := range list {
-		row := val.(map[string]interface{})
-		item := row["items"].([]interface{})[0].(map[string]interface{})
-		inf := Sense{Title:item["name"].(string), Price:item["price"].(string), ItemUrl:item["url"].(string)}
-		inf.GetChannelBySite(row["site"].(string))
-		inf.GetItemID(item["url"].(string))
-		inf.GetHistoryPrice()
-		fmt.Println(inf)
-	}
-
-	fmt.Println(thisItem["price"].(float64))
-}
-
-
 func GetSenseUrl(item_url string, title string) string {
 	url_query := url.QueryEscape(item_url)
 	m := Encrypt(url_query, 2, true)
@@ -140,7 +108,7 @@ func GetSenseUrl(item_url string, title string) string {
 	parameters.Add("vendor", "chrome", )
 	parameters.Add("browser", "chrome")
 	parameters.Add("version", "3.7.5.2", )
-	parameters.Add("extensionid", "e8170cff-a3e7-039c-3865-44b1c126227e", )
+//	parameters.Add("extensionid", "e8170cff-a3e7-039c-3865-44b1c126227e", )
 	parameters.Add("t", fmt.Sprintf("%d", time.Now().UnixNano()))
 
 	var Url *url.URL

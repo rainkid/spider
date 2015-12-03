@@ -262,7 +262,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 	content, err := loader.WithPcAgent().WithProxy(false).Send(url, "Get", nil)
 
 	if err != nil {
-		item.err = err
+		item.err = errors.New("load same page error")
 		SpiderServer.qerror <- item
 		return
 	}
@@ -273,10 +273,14 @@ func (ti *Taobao) SameStyle(item *Item) {
 	htmlParser.LoadData(ti.content)
 	sub_content := htmlParser.Partten(`(?U)g_page_config\s+=\s+({.*})\;`).FindStringSubmatch()
 	if len(sub_content) < 2 {
+		item.err = errors.New("get same json content error")
+		SpiderServer.qerror <- item
 		return
 	}
 	//json parse
 	if err := json.Unmarshal(sub_content[1], &ti.json); err != nil {
+		item.err = errors.New("parse same json error")
+		SpiderServer.qerror <- item
 		return
 	}
 
