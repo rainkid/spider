@@ -66,7 +66,7 @@ func (spider *Spider) Do(item *Item) {
 		//		go xitie.Item(item)
 		//		break
 	case "same":
-		s := &Same{}
+		s := &Hhui{}
 		go s.Item(item)
 		break
 	case "MmbItem":
