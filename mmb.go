@@ -12,11 +12,7 @@ type MMB struct {
 
 func (ti *MMB) Item(item *Item) {
 	url := fmt.Sprintf("http://mmb.cn/wap/touch/html/product/id_%s.htm", item.params["id"])
-
-	//get content
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {
 		item.err = err
@@ -48,7 +44,7 @@ func (ti *MMB) Item(item *Item) {
 }
 
 func (ti *MMB) GetItemTitle(item *Item) *MMB {
-	htmlParser := NewHtmlParser()  
+	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content)
 	title := htmlParser.FindByTagName("title")
@@ -62,7 +58,7 @@ func (ti *MMB) GetItemTitle(item *Item) *MMB {
 }
 
 func (ti *MMB) GetItemPrice(item *Item) *MMB {
-	htmlParser := NewHtmlParser()  
+	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content)
 	// fmt.Println(fmt.Sprintf("%s", hp.content))
@@ -81,7 +77,7 @@ func (ti *MMB) GetItemPrice(item *Item) *MMB {
 }
 
 func (ti *MMB) GetItemImg(item *Item) *MMB {
-	htmlParser := NewHtmlParser()  
+	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content)
 	img := htmlParser.Partten(`(?U)data-original="(.*)"`).FindStringSubmatch()

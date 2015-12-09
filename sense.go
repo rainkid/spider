@@ -9,7 +9,6 @@ import (
 	"regexp"
 )
 
-
 type Sense struct {
 	Channel string
 	ItemId  string
@@ -23,6 +22,7 @@ type History struct {
 	Price string
 	Time  string
 }
+
 //func (s *Same)Item(item *Item)  {
 //	self := Info{
 //		ItemId:item.params["id"],
@@ -43,8 +43,7 @@ type History struct {
 //	http://www.amazon.cn/gp/aw/d/b00yocbi6k
 //	http://app.huihui.cn/price_info.json?product_url=http%3A%2F%2Fitem.jd.com%2F1510479.html
 
-
-func (i *Sense)getItemUrl() {
+func (i *Sense) getItemUrl() {
 
 	item_urls := map[string]string{
 		"jd":     "http://item.jd.com/%s.html",
@@ -66,53 +65,53 @@ func (i *Sense)getItemUrl() {
 	return
 }
 
-func (i *Sense)GetChannelByName(channel_name string) {
+func (i *Sense) GetChannelByName(channel_name string) {
 
-	 channels := map[string]string{
-		"京东商城":"jd",
-		"淘宝网":"taobao",
-		"国美在线":"gome",
-		"苏宁易购":"suning",
-		"1号店":"yhd",
-		"天猫":"tmall",
-		"亚马逊":"amazon",
+	channels := map[string]string{
+		"京东商城": "jd",
+		"淘宝网":  "taobao",
+		"国美在线": "gome",
+		"苏宁易购": "suning",
+		"1号店":  "yhd",
+		"天猫":   "tmall",
+		"亚马逊":  "amazon",
 	}
 
 	channel, ok := channels[channel_name]
 	if !ok {
 		return
 	}
-	i.Channel=channel
+	i.Channel = channel
 	return
 }
-func (i *Sense)GetChannelBySite(channel_name string) {
+func (i *Sense) GetChannelBySite(channel_name string) {
 
-	 channels := map[string]string{
-		"360buy.com":"jd",
-		"taobao.com":"taobao",
-		"gome.com.cn":"gome",
-		"suning.com":"suning",
-		"yhd.com":"yhd",
-		"tmall.com":"tmall",
-		"amazon.cn":"amazon",
+	channels := map[string]string{
+		"360buy.com":  "jd",
+		"taobao.com":  "taobao",
+		"gome.com.cn": "gome",
+		"suning.com":  "suning",
+		"yhd.com":     "yhd",
+		"tmall.com":   "tmall",
+		"amazon.cn":   "amazon",
 	}
 
 	channel, ok := channels[channel_name]
 	if !ok {
 		return
 	}
-	i.Channel=channel
+	i.Channel = channel
 	return
 }
-func (i *Sense)GetItemID(detail_url string) {
-	patterns:= map[string]string{
-		"jd":`(\d+).html`,
-		"gome":`([\w]+)-.*.html`,
-		"suning":`(\d+).html`,
-		"yhd":`item\/(\d+)`,
-		"tmall":`id\=(\d+)`,
-		"taobao":`id\=(\d+)`,
-		"amazon":`detailApp\?asin\=(\w+)`,
+func (i *Sense) GetItemID(detail_url string) {
+	patterns := map[string]string{
+		"jd":     `(\d+).html`,
+		"gome":   `([\w]+)-.*.html`,
+		"suning": `(\d+).html`,
+		"yhd":    `item\/(\d+)`,
+		"tmall":  `id\=(\d+)`,
+		"taobao": `id\=(\d+)`,
+		"amazon": `detailApp\?asin\=(\w+)`,
 	}
 
 	pattern, ok := patterns[i.Channel]
@@ -124,17 +123,14 @@ func (i *Sense)GetItemID(detail_url string) {
 	if id == nil {
 		return
 	}
-	i.ItemId=id[1]
+	i.ItemId = id[1]
 	return
 }
 
-
 //根据平台的URL获取相应的历史价格
 func (i *Sense) GetHistoryPrice() error {
-
-	loader := NewLoader()
-	full_url:=fmt.Sprintf("http://zhushou.huihui.cn/productSense?phu=%s&type=canvas&t=1448957873849",url.QueryEscape(i.ItemUrl))
-	content, err := loader.Send(full_url, "Get", nil)
+	full_url := fmt.Sprintf("http://zhushou.huihui.cn/productSense?phu=%s&type=canvas&t=1448957873849", url.QueryEscape(i.ItemUrl))
+	_, content, err := NewLoader().Get(full_url)
 	if err != nil {
 		return errors.New("request error")
 	}
@@ -143,7 +139,7 @@ func (i *Sense) GetHistoryPrice() error {
 	if err := json.Unmarshal(content, &json_data); err != nil {
 		return errors.New("parse same json error")
 	}
-	if json_data["priceHistoryData"]==nil{
+	if json_data["priceHistoryData"] == nil {
 		return errors.New("no price History Data with this item")
 	}
 	//	为了使用解码 map 中的值，我们需要将他们进行适当的类型转换。例如这里我们将 num 的值转换成 float64类型。
@@ -151,18 +147,17 @@ func (i *Sense) GetHistoryPrice() error {
 	for _, val := range list {
 		h := History{}
 		row := val.(map[string]interface{})
-		h.Price = fmt.Sprintf("%.2f",row["price"].(float64))
+		h.Price = fmt.Sprintf("%.2f", row["price"].(float64))
 		h.Time = row["time"].(string)
 		i.History = append(i.History, h)
 	}
 	return nil
 }
+
 //根据平台的URL获取相应的历史价格
 func (i *Sense) parseData() error {
-
-	loader := NewLoader()
 	full_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(i.ItemUrl)
-	content, err := loader.Send(full_url, "Get", nil)
+	_, content, err := NewLoader().Get(full_url)
 	if err != nil {
 		return errors.New("request error")
 	}

@@ -12,10 +12,7 @@ type Other struct {
 
 func (ti *Other) Get(item *Item) {
 	//get content
-
-	loader := NewLoader()
-
-	content, err := loader.Send(item.params["link"], "Get", nil)
+	resp, content, err := NewLoader().Get(item.params["link"])
 
 	if err != nil {
 		item.err = err
@@ -24,11 +21,11 @@ func (ti *Other) Get(item *Item) {
 	}
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
-	
-	htmlParser := NewHtmlParser()  
+
+	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content).CleanScript().Replace()
-	ct := []byte(loader.rheader.Get("Content-Type"))
+	ct := []byte(resp.Header.Get("Content-Type"))
 	ct = bytes.ToLower(ct)
 
 	var needconv bool = true
@@ -59,7 +56,7 @@ func (ti *Other) Get(item *Item) {
 }
 
 func (ti *Other) GetOtherTitle(item *Item) *Other {
-	htmlParser := NewHtmlParser()  
+	htmlParser := NewHtmlParser()
 
 	hp := htmlParser.LoadData(ti.content)
 	title := hp.FindByTagName("title")

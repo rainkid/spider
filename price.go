@@ -1,12 +1,12 @@
 package spider
 
 import (
-// "bytes"
+	// "bytes"
 	"errors"
 	"fmt"
+	"github.com/qiniu/iconv"
 	"strconv"
 	"strings"
-	"github.com/qiniu/iconv"
 )
 
 type Price struct {
@@ -16,23 +16,20 @@ type Price struct {
 
 func (ti *Price) Item(item *Item) {
 	url := "http://www.xitie.com/jd.php?no=592892"
-	fmt.Println(item.params["channel"]);
+	fmt.Println(item.params["channel"])
 	switch item.params["channel"] {
 	case "jd":
 		url = fmt.Sprintf("http://www.xitie.com/jd.php?no=%s", item.params["id"])
-		break;
+		break
 	case "tmall":
 		url = fmt.Sprintf("http://www.xitie.com/tmall.php?no=%s", item.params["id"])
-		break;
+		break
 	case "taobao":
 		url = fmt.Sprintf("http://www.xitie.com/taobao.php?no=%s", item.params["id"])
-		break;
+		break
 	}
-	fmt.Println(url);
-	//get content
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	fmt.Println(url)
+	_, content, err := NewLoader().WithProxy().Get(url)
 	if err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
@@ -93,7 +90,7 @@ func (ti *Price) getItemX(item *Item) *Price {
 	}
 
 	space := strings.Trim(strings.TrimSpace(string(x[1])), "['")
-	space = strings.Replace(space,".","-",len(space))
+	space = strings.Replace(space, ".", "-", len(space))
 	tm := strings.Split(space, "','")
 	item.data["x"] = tm
 	return ti
@@ -149,10 +146,7 @@ func (ti *Price) GetItemImg(item *Item) *Price {
 func (ti *Price) Shop(item *Item) {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", item.params["id"])
-
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {
 		item.err = err
@@ -199,10 +193,7 @@ func (ti *Price) GetShopTitle(item *Item) *Price {
 func (ti *Price) GetShopImgs(item *Item) *Price {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", item.params["id"])
-
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 

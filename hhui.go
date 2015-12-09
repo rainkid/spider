@@ -1,17 +1,16 @@
 package spider
+
 import (
-	"fmt"
-	"strings"
-	"net/url"
-	"strconv"
-	"time"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
 )
 
-
 type Hhui struct {
-
 }
 
 //	京东，淘宝，1号店，苏宁，国美，亚马逊
@@ -26,9 +25,9 @@ type Hhui struct {
 func (h *Hhui) Item(item *Item) {
 
 	self := Sense{
-		Channel:item.params["channel"],
-		Title:item.params["title"],
-		ItemId:item.params["id"],
+		Channel: item.params["channel"],
+		Title:   item.params["title"],
+		ItemId:  item.params["id"],
 	}
 	self.getItemUrl()
 
@@ -43,8 +42,7 @@ func (h *Hhui) Item(item *Item) {
 	//	title := "创维(Skyworth) 42E5ERS 42英寸 高清LED窄边平板液晶电视(银色)"
 	SenseUrl := GetSenseUrl(self.ItemUrl, self.Title)
 
-	loader := NewLoader()
-	content, err := loader.Send(SenseUrl, "Get", nil)
+	_, content, err := NewLoader().Get(SenseUrl)
 	if err != nil {
 		item.err = errors.New("get sense content error")
 		SpiderServer.qerror <- item
@@ -59,14 +57,13 @@ func (h *Hhui) Item(item *Item) {
 		return
 	}
 	//	判断状态
-	if data_json["thisItem"]==nil{
+	if data_json["thisItem"] == nil {
 		thisItem := data_json["thisItem"].(map[string]interface{})
-		if thisItem["price"] !=nil{
+		if thisItem["price"] != nil {
 			self.Price = fmt.Sprintf("%.2f", thisItem["price"].(float64))
 
 		}
 	}
-
 
 	self.GetHistoryPrice()
 
@@ -77,9 +74,9 @@ func (h *Hhui) Item(item *Item) {
 	for _, val := range list {
 		row := val.(map[string]interface{})
 		item := row["items"].([]interface{})[0].(map[string]interface{})
-		s := Sense{Title:item["name"].(string), Price:item["price"].(string), ItemUrl:item["url"].(string)}
+		s := Sense{Title: item["name"].(string), Price: item["price"].(string), ItemUrl: item["url"].(string)}
 		s.GetChannelBySite(row["site"].(string))
-		if s.Channel==""{
+		if s.Channel == "" {
 			continue
 		}
 		s.GetItemID(item["url"].(string))
@@ -104,11 +101,11 @@ func GetSenseUrl(item_url string, title string) string {
 	parameters := url.Values{}
 	parameters.Add("m", m)
 	parameters.Add("k", k)
-	parameters.Add("av", "3.0", )
-	parameters.Add("vendor", "chrome", )
+	parameters.Add("av", "3.0")
+	parameters.Add("vendor", "chrome")
 	parameters.Add("browser", "chrome")
-	parameters.Add("version", "3.7.5.2", )
-//	parameters.Add("extensionid", "e8170cff-a3e7-039c-3865-44b1c126227e", )
+	parameters.Add("version", "3.7.5.2")
+	//	parameters.Add("extensionid", "e8170cff-a3e7-039c-3865-44b1c126227e", )
 	parameters.Add("t", fmt.Sprintf("%d", time.Now().UnixNano()))
 
 	var Url *url.URL
@@ -117,11 +114,9 @@ func GetSenseUrl(item_url string, title string) string {
 	return Url.String()
 }
 
-
-
 func Reverse(s string) string {
 	runes := []rune(s)
-	for i, j := 0, len(runes) - 1; i < j; i, j = i + 1, j - 1 {
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
@@ -139,7 +134,6 @@ func Encrypt(msg string, with int, reverse bool) string {
 	return ret
 }
 
-
 func ToHex(c int, width int) string {
-	return fmt.Sprintf("%0" + strconv.Itoa(width) + "x", c + 88)
+	return fmt.Sprintf("%0"+strconv.Itoa(width)+"x", c+88)
 }
