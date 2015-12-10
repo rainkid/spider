@@ -15,9 +15,7 @@ func (ti *Jd) Item(item *Item) {
 	url := fmt.Sprintf("http://item.m.jd.com/ware/view.action?wareId=%s", item.params["id"])
 
 	//get content
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {
 		item.err = err
@@ -91,10 +89,7 @@ func (ti *Jd) GetItemImg(item *Item) *Jd {
 func (ti *Jd) Shop(item *Item) {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", item.params["id"])
-	
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {
 		item.err = err
@@ -120,7 +115,7 @@ func (ti *Jd) Shop(item *Item) {
 }
 
 func (ti *Jd) GetShopTitle(item *Item) *Jd {
-	htmlParser := NewHtmlParser() 
+	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content).Replace()
 	title := htmlParser.Partten(`(?U)<div class="name">(.*)</div>`).FindStringSubmatch()
@@ -141,10 +136,7 @@ func (ti *Jd) GetShopTitle(item *Item) *Jd {
 func (ti *Jd) GetShopImgs(item *Item) *Jd {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/list-%s-0-1-1-10-1.htm", item.params["id"])
-
-	loader := NewLoader()
-
-	content, err := loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 

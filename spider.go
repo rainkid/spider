@@ -29,9 +29,9 @@ type Item struct {
 
 func NewSpider() *Spider {
 	SpiderServer = &Spider{
-		qstart:  make(chan *Item,1),
-		qfinish: make(chan *Item,1),
-		qerror:  make(chan *Item,1),
+		qstart:  make(chan *Item, 1),
+		qfinish: make(chan *Item, 1),
+		qerror:  make(chan *Item, 1),
 	}
 	return SpiderServer
 }
@@ -104,10 +104,10 @@ func (spider *Spider) Error(item *Item) {
 	if item.err != nil {
 		err := fmt.Sprintf("tag:<%s>, params: [%v] error :{%v}", item.tag, item.params["id"], item.err.Error())
 		SpiderLoger.E(err)
-		if item.tryTimes < 2 {
-			SpiderServer.qstart <- item
-			return
-		}
+		// if item.tryTimes < 2 {
+		// 	SpiderServer.qstart <- item
+		// 	return
+		// }
 	}
 	return
 }
@@ -125,9 +125,7 @@ func (spider *Spider) Finish(item *Item) {
 	SpiderLoger.D(v)
 	url, _ := url.QueryUnescape(item.params["callback"])
 
-	loader := NewLoader()
-
-	_, err = loader.WithProxy(false).Send(url, "Post", v)
+	_, _, err = NewLoader().Post(url, v)
 	if err != nil {
 		SpiderLoger.E("Callback with error", err.Error())
 		return

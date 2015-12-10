@@ -13,7 +13,7 @@ type Tmall struct {
 }
 
 func (ti *Tmall) Item(item *Item) {
-	tb:=Taobao{}
+	tb := Taobao{}
 	tb.Item(item)
 }
 
@@ -92,10 +92,8 @@ func (ti *Tmall) Shop(item *Item) {
 		return
 	}
 	url := fmt.Sprintf("http://s.taobao.com/search?q=%s&app=shopsearch", item.data["title"])
-	//get content
-	loader := NewLoader()
 
-	content, err := loader.WithPcAgent().Send(url, "Get", nil)
+	_, content, err := NewLoader().WithPcAgent().Get(url)
 	if err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
@@ -119,9 +117,7 @@ func (ti *Tmall) Shop(item *Item) {
 func (ti *Tmall) GetShopTitle(item *Item) *Tmall {
 	url := fmt.Sprintf("http://shop.m.tmall.com/?shop_id=%s", item.params["id"])
 	//get content
-	loader := NewLoader()
-
-	content, err :=loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {
 		item.err = err
@@ -130,7 +126,6 @@ func (ti *Tmall) GetShopTitle(item *Item) *Tmall {
 	}
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
-	
 
 	htmlParser := NewHtmlParser()
 
@@ -191,9 +186,7 @@ func (ti *Tmall) GetShopImgs(item *Item) *Tmall {
 func (ti *Tmall) Search(item *Item) {
 	url := fmt.Sprintf("https://s.taobao.com/search?q=%s", item.params["title"])
 	//get content
-	loader := NewLoader()
-
-	content, err :=loader.Send(url, "Get", nil)
+	_, content, err := NewLoader().WithProxy().Send(url, "Get", nil)
 
 	if err != nil {
 		item.err = err

@@ -1,9 +1,9 @@
 package spider
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
-	"encoding/json"
 	"strconv"
 	"strings"
 )
@@ -24,17 +24,16 @@ type Row struct {
 	FreeShipping bool
 }
 
-type rows  []Row
-type RowByBiz  []Row
+type rows []Row
+type RowByBiz []Row
 
-func (a RowByBiz) Len() int { return len(a) }
-func (a RowByBiz) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a RowByBiz) Len() int           { return len(a) }
+func (a RowByBiz) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a RowByBiz) Less(i, j int) bool { return a[i].Biz > a[j].Biz }
 
 func (ti *Search) Taobao() {
 	//get content
-	loader := NewLoader()
-	content, err := loader.WithPcAgent().Send(ti.url, "Get", nil)
+	_, content, err := NewLoader().WithPcAgent().Get(ti.url)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 	if err != nil {
@@ -66,7 +65,7 @@ func (ti *Search) Taobao() {
 	rows := rows{}
 	for _, val := range auction {
 		row := val.(map[string]interface{})
-		if (row["shopcard"].(map[string]interface{})["isTmall"] == "true") {
+		if row["shopcard"].(map[string]interface{})["isTmall"] == "true" {
 			continue
 		}
 		//排除月销量为0的商家
@@ -75,7 +74,7 @@ func (ti *Search) Taobao() {
 		view_price := row["view_price"].(string)
 		view_price_float64, _ := strconv.ParseFloat(view_price, 64)
 		org_price, _ := strconv.ParseFloat(ti.price, 64)
-		if org_price * 1.5 < view_price_float64 || org_price * 0.5 > view_price_float64 {
+		if org_price*1.5 < view_price_float64 || org_price*0.5 > view_price_float64 {
 			continue
 		}
 		r.view_price = view_price_float64
@@ -96,8 +95,7 @@ func (ti *Search) Taobao() {
 
 func (ti *Search) AiTaobao() {
 	//get content
-	loader := NewLoader()
-	content, err := loader.WithPcAgent().Send(ti.url, "Get", nil)
+	_, content, err := NewLoader().WithPcAgent().Get(ti.url)
 	ti.content = make([]byte, len(content))
 	copy(ti.content, content)
 	if err != nil {
@@ -125,7 +123,7 @@ func (ti *Search) AiTaobao() {
 	rows := rows{}
 	for _, val := range auction {
 		row := val.(map[string]interface{})
-		if (row["tagType"].(string) == "1") {
+		if row["tagType"].(string) == "1" {
 			continue
 		}
 		//排除月销量为0的商家
@@ -136,7 +134,7 @@ func (ti *Search) AiTaobao() {
 		r.ItemId = fmt.Sprintf("%.0f", row["itemId"].(float64))
 		r.view_price = row["realPrice"].(float64)
 		org_price, _ := strconv.ParseFloat(ti.price, 64)
-		if org_price * 1.5 < r.view_price || org_price * 0.5 > r.view_price {
+		if org_price*1.5 < r.view_price || org_price*0.5 > r.view_price {
 			continue
 		}
 
@@ -151,4 +149,3 @@ func (ti *Search) AiTaobao() {
 	ti.item_id = rows[0].ItemId
 	return
 }
-
