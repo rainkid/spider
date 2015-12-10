@@ -29,7 +29,7 @@ type Loader struct {
 }
 
 func NewLoader() *Loader {
-	transport := NewTransPort(30)
+	transport := NewTransPort(10)
 	l := &Loader{
 		transport: transport,
 		useProxy:  true,
@@ -41,7 +41,7 @@ func NewLoader() *Loader {
 		},
 	}
 
-	time.AfterFunc(time.Duration(30)*time.Second, func() {
+	time.AfterFunc(time.Duration(10)*time.Second, func() {
 		l.Close()
 		recover()
 	})
@@ -157,6 +157,7 @@ func (l *Loader) Send(urlStr, method string, data url.Values) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	resp.Close=true
 	if l.useProxy {
 		SpiderLoger.D(fmt.Sprintf("[%d] Loader [%s] with proxy [%s].", resp.StatusCode, l.url, proxy_addr))
 	} else {
