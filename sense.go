@@ -130,7 +130,7 @@ func (i *Sense) GetItemID(detail_url string) {
 //根据平台的URL获取相应的历史价格
 func (i *Sense) GetHistoryPrice() error {
 	full_url := fmt.Sprintf("http://zhushou.huihui.cn/productSense?phu=%s&type=canvas&t=1448957873849", url.QueryEscape(i.ItemUrl))
-	_, content, err := NewLoader().Get(full_url)
+	_, content, err := NewLoader().WithProxy().Get(full_url)
 	if err != nil {
 		return errors.New("request error")
 	}
@@ -154,10 +154,10 @@ func (i *Sense) GetHistoryPrice() error {
 	return nil
 }
 
-//根据平台的URL获取相应的历史价格
+//根据平台的URL获取相应的历史价格  removed
 func (i *Sense) parseData() error {
 	full_url := "http://app.huihui.cn/price_info.json?product_url=" + url.QueryEscape(i.ItemUrl)
-	_, content, err := NewLoader().Get(full_url)
+	_, content, err := NewLoader().WithProxy().Get(full_url)
 	if err != nil {
 		return errors.New("request error")
 	}

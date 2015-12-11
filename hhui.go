@@ -14,13 +14,6 @@ type Hhui struct {
 }
 
 //	京东，淘宝，1号店，苏宁，国美，亚马逊
-//	https://detail.m.tmall.com/item.htm?id=523130215596
-//	http://item.m.jd.com/ware/view.action?wareId=1722509764
-//	http://item.gome.com.cn/A0005322918-pop8006172148.html
-//	http://item.yhd.com/item/34188166
-//	http://m.suning.com/product/120956951.html
-//	http://www.amazon.cn/gp/aw/d/b00yocbi6k
-//	http://app.huihui.cn/price_info.json?product_url=http%3A%2F%2Fitem.jd.com%2F1510479.html
 
 func (h *Hhui) Item(item *Item) {
 
@@ -42,7 +35,7 @@ func (h *Hhui) Item(item *Item) {
 	//	title := "创维(Skyworth) 42E5ERS 42英寸 高清LED窄边平板液晶电视(银色)"
 	SenseUrl := GetSenseUrl(self.ItemUrl, self.Title)
 
-	_, content, err := NewLoader().Get(SenseUrl)
+	_, content, err := NewLoader().WithProxy().Get(SenseUrl)
 	if err != nil {
 		item.err = errors.New("get sense content error")
 		SpiderServer.qerror <- item

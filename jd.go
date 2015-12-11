@@ -16,7 +16,6 @@ func (ti *Jd) Item(item *Item) {
 
 	//get content
 	_, content, err := NewLoader().WithProxy().Get(url)
-
 	if err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
@@ -46,7 +45,7 @@ func (ti *Jd) GetItemTitle(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
 	htmlParser.LoadData(ti.content)
-	title := htmlParser.Partten(`(?U)class="title-text">(.*)\s+<i`).FindStringSubmatch()
+	title := htmlParser.Partten(`(?U)class="title-text">(.*)\s+<`).FindStringSubmatch()
 
 	if title == nil {
 		item.err = errors.New(`get title error`)
@@ -60,7 +59,7 @@ func (ti *Jd) GetItemPrice(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
 	hp := htmlParser.LoadData(ti.content)
-	price := hp.Partten(`(?U)&yen;(\d+\.\d+)`).FindStringSubmatch()
+	price := hp.Partten(`(?U)&yen;</span>?(\d+.\d+)`).FindStringSubmatch()
 	if price == nil {
 		item.err = errors.New(`get price error`)
 		return ti
