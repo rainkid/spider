@@ -34,6 +34,7 @@ var (
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.93 Safari/537.36",
 		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.11 (KHTML, like Gecko) Ubuntu/11.10 Chromium/27.0.1453.93 Chrome/27.0.1453.93 Safari/537.36",
 		"Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.94 Safari/537.36",
+		"Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.94 Safari/537.36",
 	}
 )
 
@@ -61,7 +62,7 @@ func NewLoader() *Loader {
 		useProxy: false,
 	}
 	loader.WithMobileAgent()
-	loader.getApiProxyList()
+//	loader.getApiProxyList()
 	return loader
 }
 
@@ -86,6 +87,8 @@ func (loader *Loader) WithPcAgent() *Loader {
 	loader.myHeader["User-Agent"] = pcUserAgentS[num]
 	return loader
 }
+
+
 
 func (loader *Loader) getProxyServer() *list.Element {
 	if el := proxyList.Front(); el != nil {
@@ -158,17 +161,23 @@ func (loader *Loader) getTransport() *http.Transport {
 			return net.DialTimeout(network, addr, time.Second*15)
 		},
 		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS10,
+			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: true,
 		},
 		DisableKeepAlives: true,
 	}
 
 	if loader.useProxy == true {
-		loader.proxyInfo = loader.getProxyServer()
-		if loader.proxyInfo != nil {
-			proxy := fmt.Sprintf("http://%s", loader.proxyInfo.Value.(string))
-			proxyUrl, _ := url.Parse(proxy)
+//		loader.proxyInfo = loader.getProxyServer()
+//		if loader.proxyInfo != nil {
+//			proxy := fmt.Sprintf("http://%s", loader.proxyInfo.Value.(string))
+//			proxyUrl, _ := url.Parse(proxy)
+//			transport.Proxy = http.ProxyURL(proxyUrl)
+//		}
+
+		proxyServerInfo := SpiderProxy.GetProxyServer()
+		if proxyServerInfo != nil {
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
 			transport.Proxy = http.ProxyURL(proxyUrl)
 		}
 	}
@@ -196,13 +205,13 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 		Transport: loader.transport,
 	}
 
-	utime := int32(time.Now().Unix())
-	if strings.Contains(target, "?") {
-		target += fmt.Sprintf("&t=%d", utime)
-	} else {
-		target += fmt.Sprintf("?t=%d", utime)
-	}
-
+//	utime := int32(time.Now().Unix())
+//	if strings.Contains(target, "?") {
+//		target += fmt.Sprintf("&t=%d", utime)
+//	} else {
+//		target += fmt.Sprintf("?t=%d", utime)
+//	}
+	fmt.Println(loader.transport)
 	request := loader.getRequest(target, method, data)
 	resp, err := client.Do(request)
 	if err != nil {
@@ -222,7 +231,7 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 		if loader.proxyInfo != nil {
 			proxyList.Remove(loader.proxyInfo)
 		}
-		return nil, nil, err
+		return resp, nil, err
 	}
 
 	var reader io.ReadCloser
