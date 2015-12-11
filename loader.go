@@ -211,7 +211,6 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 //	} else {
 //		target += fmt.Sprintf("?t=%d", utime)
 //	}
-	fmt.Println(loader.transport)
 	request := loader.getRequest(target, method, data)
 	resp, err := client.Do(request)
 	if err != nil {
