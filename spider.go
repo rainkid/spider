@@ -61,13 +61,9 @@ func (spider *Spider) Do(item *Item) {
 		jd := &Jd{}
 		go jd.Item(item)
 		break
-		//	case "XtItem":
-		//		xitie:= &Xitie{}
-		//		go xitie.Item(item)
-		//		break
-	case "same":
-		s := &Hhui{}
-		go s.Item(item)
+	case "Same":
+		hh := &Hhui{}
+		go hh.Item(item)
 		break
 	case "MmbItem":
 		mmb := &MMB{}

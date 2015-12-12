@@ -60,7 +60,7 @@ func (ti *Jd) GetItemPrice(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
 	hp := htmlParser.LoadData(ti.content)
-	price := hp.Partten(`(?U)&yen;</span>?(\d+.\d+)`).FindStringSubmatch()
+	price := hp.Partten(`(?U)&yen;</span>(\d+.\d+)`).FindStringSubmatch()
 	if price == nil {
 		item.err = errors.New(`get price error`)
 		return ti
