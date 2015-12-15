@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"time"
 )
 
 var (
@@ -155,9 +154,6 @@ func (spider *Spider) Daemon() {
 				break
 			case item := <-spider.qerror:
 				go spider.Error(item)
-				break
-			default:
-				time.Sleep(time.Second)
 				break
 			}
 		}

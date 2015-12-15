@@ -50,11 +50,10 @@ func (h *Hhui) Item(item *Item) {
 		return
 	}
 	//	判断状态
-	if data_json["thisItem"] == nil {
+	if data_json["thisItem"] != nil {
 		thisItem := data_json["thisItem"].(map[string]interface{})
 		if thisItem["price"] != nil {
 			self.Price = fmt.Sprintf("%.2f", thisItem["price"].(float64))
-
 		}
 	}
 
