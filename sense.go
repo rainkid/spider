@@ -49,7 +49,7 @@ func (i *Sense) getItemUrl() {
 		"jd":     "http://item.jd.com/%s.html",
 		"yhd":    "http://www.yihaodian.com/item/%s",
 		"gome":   "http://item.gome.com.cn/%s.html",
-		"tmall":  "https://item.taobao.com/item.htm?id=%s",
+		"tmall":  "https://detail.tmall.com/item.htm?id=%s",
 		"taobao": "https://item.taobao.com/item.htm?id=%s",
 		"suning": "http://product.suning.com/%s.html",
 		"amazon": "http://www.amazon.cn/mn/detailApp?asin=%s",

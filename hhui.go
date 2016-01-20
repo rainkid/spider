@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"math/rand"
 )
 
 type Hhui struct {
@@ -34,7 +35,6 @@ func (h *Hhui) Item(item *Item) {
 	//	item_url := "http://item.jd.com/1510479.html"
 	//	title := "创维(Skyworth) 42E5ERS 42英寸 高清LED窄边平板液晶电视(银色)"
 	SenseUrl := GetSenseUrl(self.ItemUrl, self.Title)
-
 	_, content, err := NewLoader().WithProxy().Get(SenseUrl)
 	if err != nil {
 		item.err = errors.New("get sense content error")
@@ -90,14 +90,15 @@ func GetSenseUrl(item_url string, title string) string {
 	title_param_str := strings.Join(title_map, "^&")
 	k := Encrypt(title_param_str, 4, false)
 
+	ExtensionId :=GetExtensionId()
 	parameters := url.Values{}
+	parameters.Add("av", "3.0")
+	parameters.Add("vendor", "chromenew")
+	parameters.Add("browser", "chrome")
+	parameters.Add("version", "4.2.9.1")
+	parameters.Add("extensionid", ExtensionId)
 	parameters.Add("m", m)
 	parameters.Add("k", k)
-	parameters.Add("av", "3.0")
-	parameters.Add("vendor", "chrome")
-	parameters.Add("browser", "chrome")
-	parameters.Add("version", "3.7.5.2")
-	//	parameters.Add("extensionid", "e8170cff-a3e7-039c-3865-44b1c126227e", )
 	parameters.Add("t", fmt.Sprintf("%d", time.Now().UnixNano()))
 
 	var Url *url.URL
@@ -106,6 +107,19 @@ func GetSenseUrl(item_url string, title string) string {
 	return Url.String()
 }
 
+
+func GetExtensionId() string {
+	s4 := func() string {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		str := ToHex(r.Intn(rand.Int()), 2)
+		return str[1:5]
+
+	}
+	s := s4() + s4() + "-" + s4() + "-" + s4() + "-" + s4() + "-" + s4() + s4() + s4()
+	return s;
+}
+
+//字符串反转
 func Reverse(s string) string {
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
@@ -113,19 +127,20 @@ func Reverse(s string) string {
 	}
 	return string(runes)
 }
+//遍历msg的字符,转换成相应with位16进制,然后连接在一起
 func Encrypt(msg string, with int, reverse bool) string {
-	var s_arr []string
-	for _, s_chr := range msg {
-		s_int := int(s_chr)
-		s_arr = append(s_arr, ToHex(s_int, with))
+	var ch_arr []string
+	for _, ch := range msg {
+		ch_int := int(ch)
+		ch_arr = append(ch_arr, ToHex(ch_int+88, with))
 	}
-	ret := strings.Join(s_arr, "")
+	ret := strings.Join(ch_arr, "")
 	if reverse {
 		return Reverse(ret)
 	}
 	return ret
 }
-
-func ToHex(c int, width int) string {
-	return fmt.Sprintf("%0"+strconv.Itoa(width)+"x", c+88)
+//变成对应位数的16进制
+func ToHex(ch int, width int) string {
+	return fmt.Sprintf("%0"+strconv.Itoa(width)+"x", ch)
 }

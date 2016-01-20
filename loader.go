@@ -217,8 +217,8 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 		loader.Runing--
 		return nil, nil, err
 	}
-
 	defer resp.Body.Close()
+
 	if loader.useProxy {
 		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Loader [", target, "] with proxy")
 	} else {
@@ -227,9 +227,9 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 
 	if resp.StatusCode != 200 {
 		loader.Runing--
-		if loader.proxyInfo != nil {
-			proxyList.Remove(loader.proxyInfo)
-		}
+//		if loader.proxyInfo != nil {
+//			proxyList.Remove(loader.proxyInfo)
+//		}
 		return resp, nil, err
 	}
 
