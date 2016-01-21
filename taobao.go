@@ -248,7 +248,7 @@ func (ti *Taobao) GetShopImgs(item *Item) *Taobao {
 func (ti *Taobao) SameStyle(item *Item) {
 	result := []SameItem{}
 	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", item.params["pid"], item.params["id"])
-	_, content, err := NewLoader().WithPcAgent().Get(url)
+	_, content, err := NewLoader().WithProxy().WithPcAgent().Get(url)
 
 	if err != nil {
 		item.err = errors.New("load same page error")
@@ -259,7 +259,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 	copy(ti.content, content)
 
 	htmlParser := NewHtmlParser()
-	htmlParser.LoadData(ti.content)
+	htmlParser.LoadData(ti.content).Convert()
 	sub_content := htmlParser.Partten(`(?U)g_page_config\s+=\s+({.*})\;`).FindStringSubmatch()
 	if len(sub_content) < 2 {
 		item.err = errors.New("get same json content error")

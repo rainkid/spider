@@ -45,6 +45,7 @@ var (
 
 type Loader struct {
 	Runing    int
+	proxy     string
 	proxyInfo *list.Element
 	useProxy  bool
 	transport *http.Transport
@@ -177,8 +178,9 @@ func (loader *Loader) getTransport() *http.Transport {
 
 		proxyServerInfo := SpiderProxy.GetProxyServer()
 		if proxyServerInfo != nil {
-			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s:%s", proxyServerInfo.host, proxyServerInfo.port))
+			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s", proxyServerInfo.host))
 			transport.Proxy = http.ProxyURL(proxyUrl)
+			loader.proxy = proxyServerInfo.host
 		}
 	}
 	return transport
@@ -220,7 +222,7 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 	defer resp.Body.Close()
 
 	if loader.useProxy {
-		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Loader [", target, "] with proxy")
+		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "][proxy: "+loader.proxy+"] Loader [", target, "]")
 	} else {
 		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Loader [", target, "]")
 	}
