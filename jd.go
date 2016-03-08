@@ -3,20 +3,49 @@ package spider
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
+	"encoding/json"
 )
 
 type Jd struct {
 	content []byte
 }
 
+
+
 func (ti *Jd) Item(item *Item) {
-	url := fmt.Sprintf("http://item.m.jd.com/ware/view.action?wareId=%s", item.params["id"])
+	url := fmt.Sprintf("http://item.jd.com/%s.html", item.params["id"])
 
 	//get content
 	_, content, err := NewLoader().WithProxy().Get(url)
-	fmt.Println(string(content))
+	if err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
+		return
+	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+
+	// ti.content = bytes.Replace(ti.content, []byte(`\"`), []byte(`"`), -1)
+
+	if ti.GetItemTitle(item).CheckError(item) {
+		return
+	}
+	//check price
+	if ti.GetItemPrice(item).CheckError(item) {
+		return
+	}
+	if ti.GetItemImg(item).CheckError(item) {
+		return
+	}
+	// fmt.Println(item.data)
+	SpiderServer.qfinish <- item
+	return
+}
+func (ti *Jd) ItemHk(item *Item) {
+	url := fmt.Sprintf("http://item.jd.hk/%s.html", item.params["id"])
+	//get content
+	_, content, err := NewLoader().WithProxy().Get(url)
 	if err != nil {
 		item.err = err
 		SpiderServer.qerror <- item
@@ -45,28 +74,46 @@ func (ti *Jd) Item(item *Item) {
 func (ti *Jd) GetItemTitle(item *Item) *Jd {
 	htmlParser := NewHtmlParser()
 
-	htmlParser.LoadData(ti.content)
-	title := htmlParser.Partten(`(?U)class="title-text">(.*)\s+<`).FindStringSubmatch()
-
+	htmlParser.LoadData(ti.content).Convert()
+	title := htmlParser.Partten(`(?U)name: '(.*)'`).FindStringSubmatch()
 	if title == nil {
-		item.err = errors.New(`get title error`)
+		item.err = errors.New(`get jd item title error`)
 		return ti
 	}
-	item.data["title"] = strings.TrimSpace(string(title[1]))
+
+	s := `{"text" : "`+strings.TrimSpace(string(title[1]))+`"}`
+	type Title struct {
+		Text string
+	}
+	var tt Title;
+	by := make([]byte,len(s))
+	copy(by,s)
+	json.Unmarshal(by, &tt);
+	item.data["title"] = strings.TrimSpace(tt.Text)
 	return ti
 }
 
 func (ti *Jd) GetItemPrice(item *Item) *Jd {
-	htmlParser := NewHtmlParser()
 
-	hp := htmlParser.LoadData(ti.content)
-	price := hp.Partten(`(?U)&yen;</span>(\d+.\d+)`).FindStringSubmatch()
-	if price == nil {
-		item.err = errors.New(`get price error`)
+//	http://p.3.cn/prices/mgets?skuIds=J_1956260778&type=1
+	url := fmt.Sprintf("http://p.3.cn/prices/mgets?skuIds=J_%s&type=1", item.params["id"])
+	//get content
+	_, content, err := NewLoader().Get(url)
+	if err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
 		return ti
 	}
-	iprice, _ := strconv.ParseFloat(fmt.Sprintf("%s", strings.TrimSpace(string(price[1]))), 64)
-	item.data["price"] = fmt.Sprintf("%.2f", iprice)
+	var data_json []interface{}
+	if err := json.Unmarshal(content, &data_json); err != nil {
+		item.err = errors.New("parse jd price json error")
+		SpiderServer.qerror <- item
+		return ti
+	}
+	data :=  data_json[0].(map[string]interface{})
+	if data["p"] != nil {
+		item.data["price"] = data["p"]
+	}
 	return ti
 }
 
@@ -75,20 +122,46 @@ func (ti *Jd) GetItemImg(item *Item) *Jd {
 
 	hp := htmlParser.LoadData(ti.content)
 
-	img := hp.Partten(`(?U)<img.*src="(.*)" class="J_ping"`).FindStringSubmatch()
+	img := hp.Partten(`(?Us)id="preview".*src="(.*)"`).FindStringSubmatch()
 
 	if img == nil {
-		item.err = errors.New(`get img error`)
+		item.err = errors.New(`get jd image error`)
 		return ti
 	}
-
-	item.data["img"] = fmt.Sprintf("%s", img[1])
+	item.data["img"] = fmt.Sprintf("http:%s", img[1])
 	return ti
 }
 
 func (ti *Jd) Shop(item *Item) {
 
 	url := fmt.Sprintf("http://ok.jd.com/m/index-%s.htm", item.params["id"])
+	_, content, err := NewLoader().WithProxy().Get(url)
+
+	if err != nil {
+		item.err = err
+		SpiderServer.qerror <- item
+		return
+	}
+	ti.content = make([]byte, len(content))
+	copy(ti.content, content)
+
+	htmlParser := NewHtmlParser()
+
+	htmlParser.LoadData(ti.content).Replace().CleanScript()
+
+	if ti.GetShopTitle(item).CheckError(item) {
+		return
+	}
+
+	if ti.GetShopImgs(item).CheckError(item) {
+		return
+	}
+	SpiderServer.qfinish <- item
+	return
+}
+func (ti *Jd) ShopHk(item *Item) {
+
+	url := fmt.Sprintf("http://ok.jd.hk/m/index-%s.htm", item.params["id"])
 	_, content, err := NewLoader().WithProxy().Get(url)
 
 	if err != nil {

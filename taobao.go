@@ -83,8 +83,19 @@ func (ti *Taobao) CheckResponse(item *Item) (*Taobao, error) {
 
 func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 
+
+	if ti.json["data"] != nil {
+		item.err = errors.New("Taobao: get item detail data error")
+		SpiderServer.qerror <- item
+		return ti
+	}
 	data := ti.json["data"].(map[string]interface{})
 
+	if data["itemInfoModel"] != nil {
+		item.err = errors.New("Taobao: get item itemInfoModel  error")
+		SpiderServer.qerror <- item
+		return ti
+	}
 	itemInfoModel := data["itemInfoModel"].(map[string]interface{})
 	seller := data["seller"].(map[string]interface{})
 	apiStack := data["apiStack"].([]interface{})[0].(map[string]interface{})["value"]
@@ -97,6 +108,11 @@ func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 		return ti
 	}
 
+	if api_stack["data"].(map[string]interface{})["itemInfoModel"] != nil {
+		item.err = errors.New("Taobao: get item price itemInfoModel error")
+		SpiderServer.qerror <- item
+		return ti
+	}
 	info := api_stack["data"].(map[string]interface{})["itemInfoModel"].(map[string]interface{})
 	priceUnits := info["priceUnits"].([]interface{})[0].(map[string]interface{})
 	price_byte := []byte(priceUnits["price"].(string))
@@ -248,7 +264,8 @@ func (ti *Taobao) GetShopImgs(item *Item) *Taobao {
 func (ti *Taobao) SameStyle(item *Item) {
 	result := []SameItem{}
 	url := fmt.Sprintf("http://s.taobao.com/list?tab=all&sort=sale-desc&type=samestyle&uniqpid=-%s&app=i2i&nid=%s", item.params["pid"], item.params["id"])
-	_, content, err := NewLoader().WithProxy().WithPcAgent().Get(url)
+	url = fmt.Sprintf("https://s.taobao.com/search?type=samestyle&app=i2i&rec_type=1&uniqpid=-%s&nid=%s", item.params["pid"], item.params["id"])
+	_, content, err := NewLoader().WithPcAgent().Get(url)
 
 	if err != nil {
 		item.err = errors.New("load same page error")
@@ -259,7 +276,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 	copy(ti.content, content)
 
 	htmlParser := NewHtmlParser()
-	htmlParser.LoadData(ti.content).Convert()
+	htmlParser.LoadData(ti.content)
 	sub_content := htmlParser.Partten(`(?U)g_page_config\s+=\s+({.*})\;`).FindStringSubmatch()
 	if len(sub_content) < 2 {
 		item.err = errors.New("get same json content error")
@@ -326,12 +343,12 @@ func (ti *Taobao) SameStyle(item *Item) {
 		}
 		//原价过滤
 		s.ReservePrice, _ = strconv.ParseFloat(v["reserve_price"].(string), 64)
-		if s.ReservePrice > current_reserve_price*1.5 || s.ReservePrice < current_reserve_price*0.5 {
+		if s.ReservePrice > current_reserve_price * 1.5 || s.ReservePrice < current_reserve_price * 0.5 {
 			continue
 		}
 		//现价过滤
 		s.Price, _ = strconv.ParseFloat(v["view_price"].(string), 64)
-		if s.Price > current_view_price*1.5 || s.Price < current_view_price*0.5 {
+		if s.Price > current_view_price * 1.5 || s.Price < current_view_price * 0.5 {
 			continue
 		}
 		//低价+2
@@ -354,7 +371,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 			}
 			sum_score += f_score
 		}
-		s.Score = Round(sum_score/3, 2)
+		s.Score = Round(sum_score / 3, 2)
 		//如果三项平均分低于4.7,排除
 		if s.Score < 4.65 {
 			continue
@@ -380,7 +397,7 @@ func (ti *Taobao) SameStyle(item *Item) {
 }
 func Round(f float64, n int) float64 {
 	pow10_n := math.Pow10(n)
-	return math.Trunc((f+0.5/pow10_n)*pow10_n) / pow10_n
+	return math.Trunc((f + 0.5 / pow10_n) * pow10_n) / pow10_n
 }
 func (ti *Taobao) SameStyleX(item *Item) {
 	var result []map[string]string
@@ -408,9 +425,9 @@ func (ti *Taobao) SameStyleX(item *Item) {
 		return
 	}
 	var (
-		totalPrice      float64 = 0
-		totalCount      float64 = 0
-		avgPrice        float64 = 0
+		totalPrice float64 = 0
+		totalCount float64 = 0
+		avgPrice float64 = 0
 		uniquePricesArr []float64
 		pricesMap       map[float64]bool = make(map[float64]bool)
 	)
@@ -436,7 +453,7 @@ func (ti *Taobao) SameStyleX(item *Item) {
 	}
 	sort.Float64s(uniquePricesArr)
 	//计算平均价格
-	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice/totalCount), 64)
+	avgPrice, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", totalPrice / totalCount), 64)
 	lret := len(ret)
 	for i := 1; i < l; i++ {
 		var sortScore = lret - i
@@ -476,7 +493,7 @@ func (ti *Taobao) SameStyleX(item *Item) {
 		data["price"] = fmt.Sprintf("%s", price[1])
 		//价格低于平均价格40%
 		p2, _ := strconv.ParseFloat(data["price"], 64)
-		if p2 < avgPrice*0.4 {
+		if p2 < avgPrice * 0.4 {
 			// SpiderLoger.D(data["id"], "price len aveprice off 40%")
 			continue
 		}

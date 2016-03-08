@@ -60,6 +60,10 @@ func (spider *Spider) Do(item *Item) {
 		jd := &Jd{}
 		go jd.Item(item)
 		break
+	case "JdItemHk":
+		jd := &Jd{}
+		go jd.ItemHk(item)
+		break
 	case "Same":
 		hh := &Hhui{}
 		go hh.Item(item)
@@ -79,6 +83,10 @@ func (spider *Spider) Do(item *Item) {
 	case "JdShop":
 		jd := &Jd{}
 		go jd.Shop(item)
+		break
+	case "JdShopHk":
+		jd := &Jd{}
+		go jd.ShopHk(item)
 		break
 	case "TaobaoShop":
 		taobao := &Taobao{}
