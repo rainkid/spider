@@ -222,9 +222,9 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 	defer resp.Body.Close()
 
 	if loader.useProxy {
-		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "][proxy: "+loader.proxy+"] Loader [", target, "]")
+		SpiderLoger.D("[Loader][", resp.StatusCode, "][proxy: "+loader.proxy+"] Load [", target, "]")
 	} else {
-		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Loader [", target, "]")
+		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Load [", target, "]")
 	}
 
 	if resp.StatusCode != 200 {

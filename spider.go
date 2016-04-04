@@ -95,6 +95,9 @@ func (spider *Spider) Do(item *Item) {
 	case "SameStyle":
 		taobao := &Taobao{}
 		go taobao.SameStyle(item)
+	case "AliSame":
+		ali := &AliSame{}
+		go ali.Same(item)
 	case "Other":
 		other := &Other{}
 		go other.Get(item)
