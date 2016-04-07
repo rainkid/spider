@@ -110,7 +110,7 @@ func (ti *Search) AiTaobao() {
 	}
 	var data_json map[string]interface{}
 	//json parse
-	if err := json.Unmarshal(sub_content[1], &data_json); err != nil {
+	if err := json.Unmarshal(sub_content[1], &data_json); err == nil {
 		return
 	}
 

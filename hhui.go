@@ -56,8 +56,12 @@ func (h *Hhui) Item(item *Item) {
 			self.Price = fmt.Sprintf("%.2f", thisItem["price"].(float64))
 		}
 	}
+	//	判断状态
+	if data_json["priceHistoryData"] != nil {
+		priceHistory := data_json["priceHistoryData"].(map[string]interface{})["list"].([]interface{})
+		self.GetHistoryPrice(priceHistory)
+	}
 
-	self.GetHistoryPrice()
 
 	result := []Sense{}
 	result = append(result, self)
@@ -72,8 +76,6 @@ func (h *Hhui) Item(item *Item) {
 			continue
 		}
 		s.GetItemID(item["url"].(string))
-		s.GetHistoryPrice()
-
 		result = append(result, s)
 
 	}

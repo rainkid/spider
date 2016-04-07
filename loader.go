@@ -2,9 +2,7 @@ package spider
 
 import (
 	"compress/gzip"
-	"container/list"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,8 +16,8 @@ import (
 )
 
 var (
-	skey             = "OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh"
-	ApiProxyURL      = "http://proxy.gouwudating.cn/api/fetch/list?key=OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh&total=1000&port=&check_country_group%5B0%5D=0&check_http_type%5B0%5D=0&check_anonymous%5B0%5D=0&check_elapsed=0&check_upcount=0&result_sort_field=1&result_format=json"
+	skey = "OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh"
+	ApiProxyURL = "http://proxy.gouwudating.cn/api/fetch/list?key=OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh&total=1000&port=&check_country_group%5B0%5D=0&check_http_type%5B0%5D=0&check_anonymous%5B0%5D=0&check_elapsed=0&check_upcount=0&result_sort_field=1&result_format=json"
 	mobileUserAgentS = []string{
 		"Mozilla/5.0 (Linux; U; Android 4.0.2; en-us; Galaxy Nexus Build/ICL53F) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30",
 		"Mozilla/5.0 (iPhone; CPU iPhone OS 5_0_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko)",
@@ -38,15 +36,10 @@ var (
 	}
 )
 
-var (
-	proxyList     *list.List = list.New()
-	proxyListLock bool       = false
-)
-
 type Loader struct {
 	Runing    int
 	proxy     string
-	proxyInfo *list.Element
+	proxyInfo ProxyInfo
 	useProxy  bool
 	transport *http.Transport
 	myHeader  map[string]string
@@ -63,7 +56,7 @@ func NewLoader() *Loader {
 		useProxy: false,
 	}
 	loader.WithMobileAgent()
-//	loader.getApiProxyList()
+	//	loader.getApiProxyList()
 	return loader
 }
 
@@ -73,70 +66,31 @@ func (loader *Loader) SetHeader(head, value string) *Loader {
 }
 
 func (loader *Loader) WithMobileAgent() *Loader {
-	num := utils.RandInt(0, len(mobileUserAgentS)-1)
+	num := utils.RandInt(0, len(mobileUserAgentS) - 1)
 	loader.myHeader["User-Agent"] = mobileUserAgentS[num]
 	return loader
 }
 
 func (loader *Loader) WithProxy() *Loader {
-	loader.useProxy = true
+
+	proxyInfo := SpiderProxy.GetProxyServer()
+	if proxyInfo != nil {
+		loader.proxy = proxyInfo.host
+		loader.useProxy = true
+	}
 	return loader
 }
 
 func (loader *Loader) WithPcAgent() *Loader {
-	num := utils.RandInt(0, len(pcUserAgentS)-1)
+	num := utils.RandInt(0, len(pcUserAgentS) - 1)
 	loader.myHeader["User-Agent"] = pcUserAgentS[num]
 	return loader
 }
 
-
-
-func (loader *Loader) getProxyServer() *list.Element {
-	if el := proxyList.Front(); el != nil {
-		proxyList.MoveToBack(el)
-	}
-	return proxyList.Front()
-}
-
-func (loader *Loader) getApiProxyList() {
-	if proxyListLock == true {
-		return
-	}
-	if proxyList.Len() > 20 {
-		return
-	}
-
-	proxyListLock = true
-	time.AfterFunc(time.Duration(30)*time.Second, func() {
-		proxyListLock = false
-	})
-
-	_, body, err := loader.Get(ApiProxyURL)
-	if err != nil {
-		SpiderLoger.E("[Loader.GetApiProxyList] ", err.Error())
-		return
-	}
-
-	result := make(map[string]interface{})
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		SpiderLoger.E("[Loader.GetApiProxyList]", err.Error())
-		return
-	}
-
-	if success, ok := result["success"].(bool); ok {
-		if success == true {
-			iplist, _ := result["data"].([]interface{})
-			for _, val := range iplist {
-				ipport, _ := val.(map[string]interface{})
-				proxyList.PushBack(ipport["ip:port"].(string))
-			}
-		}
-		SpiderLoger.I("[Loader.GetApiProxyList] load with", proxyList.Len(), "proxy")
-	} else {
-		SpiderLoger.E("[Loader.GetApiProxyList] json parse error")
-		return
-	}
+func (loader *Loader) SetProxyServer(host string) *Loader {
+	loader.useProxy = true
+	loader.proxy = host
+	return loader
 }
 
 func (loader *Loader) getRequest(target, method string, data url.Values) *http.Request {
@@ -159,7 +113,7 @@ func (loader *Loader) getRequest(target, method string, data url.Values) *http.R
 func (loader *Loader) getTransport() *http.Transport {
 	transport := &http.Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
-			return net.DialTimeout(network, addr, time.Second*15)
+			return net.DialTimeout(network, addr, time.Second * 15)
 		},
 		TLSClientConfig: &tls.Config{
 			MinVersion:         tls.VersionTLS12,
@@ -168,21 +122,6 @@ func (loader *Loader) getTransport() *http.Transport {
 		DisableKeepAlives: true,
 	}
 
-	if loader.useProxy == true {
-//		loader.proxyInfo = loader.getProxyServer()
-//		if loader.proxyInfo != nil {
-//			proxy := fmt.Sprintf("http://%s", loader.proxyInfo.Value.(string))
-//			proxyUrl, _ := url.Parse(proxy)
-//			transport.Proxy = http.ProxyURL(proxyUrl)
-//		}
-
-		proxyServerInfo := SpiderProxy.GetProxyServer()
-		if proxyServerInfo != nil {
-			proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s", proxyServerInfo.host))
-			transport.Proxy = http.ProxyURL(proxyUrl)
-			loader.proxy = proxyServerInfo.host
-		}
-	}
 	return transport
 }
 
@@ -201,18 +140,17 @@ func (loader *Loader) Post(target string, data url.Values) (*http.Response, []by
 
 func (loader *Loader) Send(target, method string, data url.Values) (*http.Response, []byte, error) {
 	loader.Runing++
+
 	loader.transport = loader.getTransport()
+	if (loader.proxy!="") {
+		proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s", loader.proxy))
+		loader.transport.Proxy = http.ProxyURL(proxyUrl)
+	}
 
 	client := &http.Client{
 		Transport: loader.transport,
 	}
 
-//	utime := int32(time.Now().Unix())
-//	if strings.Contains(target, "?") {
-//		target += fmt.Sprintf("&t=%d", utime)
-//	} else {
-//		target += fmt.Sprintf("?t=%d", utime)
-//	}
 	request := loader.getRequest(target, method, data)
 	resp, err := client.Do(request)
 	if err != nil {
@@ -222,16 +160,16 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 	defer resp.Body.Close()
 
 	if loader.useProxy {
-		SpiderLoger.D("[Loader][", resp.StatusCode, "][proxy: "+loader.proxy+"] Load [", target, "]")
+		SpiderLoger.D("[Loader->", resp.StatusCode, "][proxy: " + loader.proxy + "] Load [", target, "]")
 	} else {
-		SpiderLoger.D("[Loader.Send][", resp.StatusCode, "] Load [", target, "]")
+		SpiderLoger.D("[Loader->", resp.StatusCode, "] Load [", target, "]")
 	}
-
+	proxy := NewProxy();
 	if resp.StatusCode != 200 {
 		loader.Runing--
-//		if loader.proxyInfo != nil {
-//			proxyList.Remove(loader.proxyInfo)
-//		}
+		if (loader.useProxy)&&resp.StatusCode != 404 {
+			proxy.DelRow(loader.proxyInfo.index)
+		}
 		return resp, nil, err
 	}
 
@@ -253,6 +191,10 @@ func (loader *Loader) Send(target, method string, data url.Values) (*http.Respon
 	if err != nil {
 		loader.Runing--
 		return nil, nil, err
+	}
+	//add hit 4 proxy
+	if (loader.useProxy) {
+		loader.proxyInfo.AddHit()
 	}
 	loader.Runing--
 	return resp, body, nil

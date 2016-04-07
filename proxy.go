@@ -2,38 +2,42 @@ package spider
 
 import (
 	"fmt"
-	"hash/fnv"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"time"
 	"encoding/json"
+	"math/rand"
+	"container/list"
 )
 
-type ProxyServerInfo struct {
+type ProxyInfo struct {
+	hit        int    //network speed
+	area       string //region
 	host       string
-	rate       float64 //network speed
-	area       string  //region
-	style      int     //1 http 2 https 3 socket
-	status     bool    //region
-	anonymous  bool    //0 transparent 1 low 2 high
-	last_check int64   //timestamp last check time
+	style      int    //1 http 2 https 3 socket
+	index      int    //1 http 2 https 3 socket
+	status     bool   //region
+	anonymous  bool   //0 transparent 1 low 2 high
+	last_check int64  //timestamp last check time
 }
 
 type Proxy struct {
-	Rows  map[uint32]*ProxyServerInfo
-	Tbao  []*ProxyServerInfo
-	New   []*ProxyServerInfo
-	Hhui  []*ProxyServerInfo
+	Rows  map[uint32]*ProxyInfo
+	Tbao  []*ProxyInfo
+	New   []*ProxyInfo
+	Hhui  []*ProxyInfo
 	Count int
 }
 
 var (
 	SpiderProxy *Proxy
-	proxyUrl = "http://proxy.gouwudating.cn/api/fetch/list?key=OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh&num=5000&port=80%2C8080%2C8088%2C8888%2C8899&check_country_group%5B0%5D=1&check_http_type%5B0%5D=1&check_http_type%5B1%5D=2&check_anonymous%5B0%5D=3&check_elapsed=0&check_upcount=0&result_sort_field=2&check_result_fields%5B0%5D=2&check_result_fields%5B1%5D=3&check_result_fields%5B2%5D=4&check_result_fields%5B3%5D=5&check_result_fields%5B4%5D=6&check_result_fields%5B5%5D=7&result_format=json"
+	proxyUrl = "http://proxy.tebiere.com/api/fetch/list?key=OxTNiiS9PjlWIDD1KEgU71ZjZQHNxh&num=5000&port=&check_country_group%5B0%5D=1&check_http_type%5B0%5D=1&check_http_type%5B1%5D=2&check_http_type%5B2%5D=4&check_anonymous%5B0%5D=3&check_elapsed=1&check_upcount=500&result_sort_field=3&result_format=json"
 	count = 0
+	has_proxy = false
+	proxyList     *list.List = list.New()
+	proxyListLock bool = false
 )
 
 func NewProxy() *Proxy {
@@ -55,12 +59,11 @@ func (sp *Proxy) Daemon() {
 	tick_check := time.NewTicker(120 * 60 * time.Second)
 
 	go func() {
-		//		sp.getProxyServer()
 		sp.getProxyList(proxyUrl, true)
 		for {
 			select {
 			case <-tick_get.C:
-			//				sp.getProxyServer()
+			//sp.getProxyServer()
 				sp.getProxyList(proxyUrl, false)
 			case <-tick_check.C:
 				sp.Check()
@@ -68,33 +71,51 @@ func (sp *Proxy) Daemon() {
 		}
 	}()
 }
-func (sp *Proxy) DelProxyServer(index uint32) {
+func (sp *Proxy)  DelProxyServer(index uint32) {
 	SpiderLoger.D("delete proxyserver", index)
 	delete(sp.Rows, index)
 }
 
-func (sp *Proxy) GetProxyServer() *ProxyServerInfo {
+func (sp *Proxy) DelRow(index int) {
+	SpiderLoger.D("delete proxyserver", index)
+	count := len(sp.Tbao)
+
+	if (count <= 1) {
+		sp.Tbao = sp.Tbao[:0]
+	}
+	if (index >= count - 1 ) {
+		sp.Tbao = sp.Tbao[:(count - 2)]
+		return
+	}
+	if index == 0 {
+		sp.Tbao = sp.Tbao[1:]
+		return
+	}
+
+	sp.Tbao = append(sp.Tbao[:(index - 1)], sp.Tbao[(index + 1):]...)
+	return
+}
+
+func getRandIndex(len int) int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(len)
+}
+
+func (pi *ProxyInfo)AddHit() {
+	pi.hit = pi.hit + 1
+}
+
+func (sp *Proxy) GetProxyServer() *ProxyInfo {
 	count := len(sp.Tbao)
 	if count == 0 {
 		return nil
 	}
-	info := &ProxyServerInfo{}
-	for _, item := range sp.Tbao {
-		info = item
-		break;
-	}
+	info := &ProxyInfo{}
+	proxy_index := getRandIndex(count)
+	proxy_index = 0
+	info = sp.Tbao[proxy_index]
+	info.index = proxy_index
 	return info
-}
-func timer() {
-	t := time.Tick(time.Second * 30)
-	go func() {
-		for {
-			select {
-			case <-t:
-				SpiderLoger.I(fmt.Sprintf("NumGoroutine: %d", runtime.NumGoroutine()))
-			}
-		}
-	}()
 }
 
 func (sp *Proxy) getProxyServer() {
@@ -112,7 +133,7 @@ func (sp *Proxy) Check() {
 		return
 	}
 
-	jobs := make(chan *ProxyServerInfo, 10)
+	jobs := make(chan *ProxyInfo, 10)
 	ch := make(chan bool, 100)
 	done := make(chan bool)
 
@@ -121,12 +142,12 @@ func (sp *Proxy) Check() {
 			j, more := <-jobs
 			if more {
 				ch <- true
-				go j.CheckTaobao(ch)
-				//				fmt.Println("received jobs",j.host,j.port)
+				go j.CheckAli(ch)
+				//fmt.Println("received jobs",j.host,j.port)
 			} else {
 				time.Sleep(time.Second * 5)
 				SpiderLoger.I("End checking proxys count[", len(sp.Tbao), "]")
-				sp.Tbao = []*ProxyServerInfo{}
+				sp.Tbao = []*ProxyInfo{}
 				for k, i := range sp.Rows {
 					if i.status {
 						sp.Tbao = append(sp.Tbao, i)
@@ -135,7 +156,7 @@ func (sp *Proxy) Check() {
 					}
 				}
 				SpiderLoger.I("End checking proxys count[", len(sp.Tbao), "]")
-				//				fmt.Println("received all jobs")
+				//fmt.Println("received all jobs")
 				done <- true
 				return
 			}
@@ -144,7 +165,7 @@ func (sp *Proxy) Check() {
 
 	for _, i := range sp.Rows {
 		jobs <- i
-		//		fmt.Println("sent job", i)
+		//fmt.Println("sent job", i)
 	}
 	close(jobs)
 	//	fmt.Println("sent all jobs")
@@ -153,10 +174,24 @@ func (sp *Proxy) Check() {
 
 }
 
+func CheckByAli(host string) bool {
 
+	testUrl := "https://err.taobao.com/error1.html"
+	_, body, err := NewLoader().WithPcAgent().SetProxyServer(host).Get(testUrl)
+	if err != nil {
+		//SpiderLoger.I("[Proxy.GetApiProxyList] check ", host, MyColor("red"), "failed", MyColor("none"))
+		return false
+	}
+	if !strings.Contains(string(body), "alibaba.com") {
+		//SpiderLoger.I("[Proxy.GetApiProxyList] check ", host, MyColor("red"), "failed", MyColor("none"))
+		return false
+	}
+	SpiderLoger.I("[Proxy.GetApiProxyList] check ", host, MyColor("green"), "OK", MyColor("none"))
 
+	return true
+}
 
-func ChkByTbao(host string) bool {
+func CheckByAliX(host string) bool {
 
 	var timeout = time.Duration(30 * time.Second)
 	proxyUrl, _ := url.Parse(fmt.Sprintf("http://%s", host))
@@ -178,10 +213,11 @@ func ChkByTbao(host string) bool {
 	if !strings.Contains(string(body), "alibaba.com") {
 		return false
 	}
-	SpiderLoger.I("Proxy :[", host, "] OK")
+	SpiderLoger.I("[Proxy.GetApiProxyList] check ", host, MyColor("green"), "OK")
+
 	return true
 }
-func ChkByHhui(ip string, port string) bool {
+func CheckByHuiHui(ip string, port string) bool {
 
 	var timeout = time.Duration(10 * time.Second)
 	host := fmt.Sprintf("%s:%s", ip, port)
@@ -207,7 +243,7 @@ func ChkByHhui(ip string, port string) bool {
 	return true
 }
 
-func (i *ProxyServerInfo) CheckTaobao(ch chan bool) bool {
+func (i *ProxyInfo) CheckAli(ch chan bool) bool {
 
 	if (time.Now().Unix() - i.last_check) < 30 * 60 {
 		if i.status {
@@ -220,19 +256,13 @@ func (i *ProxyServerInfo) CheckTaobao(ch chan bool) bool {
 
 	i.last_check = time.Now().Unix()
 
-	if ChkByTbao(i.host) {
+	if CheckByAli(i.host) {
 		<-ch
 		return true
 	} else {
 		<-ch
 		return false
 	}
-}
-
-func hash(s string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(s))
-	return h.Sum32()
 }
 
 func (sp *Proxy) getProxyList(proxyUrl string, isFirst bool) {
@@ -242,62 +272,106 @@ func (sp *Proxy) getProxyList(proxyUrl string, isFirst bool) {
 		SpiderLoger.E("Proxy.GetApiProxyList", proxyUrl)
 		return
 	}
-
+	byteContent := make([]byte, len(body))
+	copy(byteContent, body)
 	result := make(map[string]interface{})
-	err = json.Unmarshal(body, &result)
+	err = json.Unmarshal(byteContent, &result)
 	if err != nil {
 		SpiderLoger.E("[Proxy.GetApiProxyList]", err.Error())
 		return
 	}
 
 	success, ok := result["success"].(bool);
-	if !ok {
+	if !ok || success == false {
 		SpiderLoger.E("[Proxy.GetApiProxyList] json parse error")
 		return
 	}
-	if success == true {
-		iplist, _ := result["list"].([]interface{})
-		ch := make(chan bool, 10)
-		if isFirst {
-			for _, val := range iplist {
-				tmp := val.(map[string]interface{})
-				host := tmp["ip:port"].(string)
 
-				ch<-true
-				go func() {
-					defer func() { <-ch }()
-					if ChkByTbao(host) {
-						row := &ProxyServerInfo{host:host, status: true}
-						sp.Tbao = append(sp.Tbao, row)
-					}
-				}()
+	proxyIpList, _ := result["list"].([]interface{})
+
+	ch := make(chan bool, 100)
+	SpiderLoger.I("[Proxy.GetApiProxyList] get proxy list")
+	for _, val := range proxyIpList {
+		ch <- true
+		tmp := val.(map[string]interface{})
+		host := tmp["ip:port"].(string)
+		go func() {
+			defer func() {
+				<-ch
+			}()
+			if CheckByAli(host) {
+				row := &ProxyInfo{host:host, status: true}
+				if (isFirst) {
+					sp.Tbao = append(sp.Tbao, row)
+
+				}else {
+					sp.New = append(sp.New, row)
+				}
+				if (has_proxy == false) {
+					has_proxy = true
+					SpiderLoger.I("[Proxy.GetApiProxyList] add first ", row.host)
+				}
 			}
-		} else {
+
+			if (len(sp.New) >= 10) {
+				SpiderLoger.I("The proxy server count ", len(sp.New))
+				sp.Tbao = append(sp.Tbao, sp.New...)
+				sp.New = sp.New[:0]
+			}
+		}()
+	}
+
+}
+
+func (loader *Loader) getApiProxyList() {
+	if proxyListLock == true {
+		return
+	}
+	if proxyList.Len() > 20 {
+		return
+	}
+
+	proxyListLock = true
+	time.AfterFunc(time.Duration(30) * time.Second, func() {
+		proxyListLock = false
+	})
+
+	_, body, err := loader.Get(ApiProxyURL)
+	if err != nil {
+		SpiderLoger.E("[Loader.GetApiProxyList] ", err.Error())
+		return
+	}
+
+	result := make(map[string]interface{})
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		SpiderLoger.E("[Loader.GetApiProxyList]", err.Error())
+		return
+	}
+
+	if success, ok := result["success"].(bool); ok {
+		if success == true {
+			iplist, _ := result["data"].([]interface{})
 			for _, val := range iplist {
-				ch<-true
-				tmp := val.(map[string]interface{})
-				host := tmp["ip:port"].(string)
-				go func() {
-					defer func() { <-ch }()
-					if ChkByTbao(host) {
-						row := &ProxyServerInfo{host:host, status: true}
-						sp.New = append(sp.New, row)
-					}
-					if (len(sp.New) >= 1000) {
-						SpiderLoger.I("The proxy server count ", len(sp.New))
-						sp.Tbao = sp.New
-						sp.New = sp.New[:0]
-					}
-				}()
+				ipport, _ := val.(map[string]interface{})
+				proxyList.PushBack(ipport["ip:port"].(string))
 			}
 		}
-
+		SpiderLoger.I("[Loader.GetApiProxyList] load with", proxyList.Len(), "proxy")
+	} else {
+		SpiderLoger.E("[Loader.GetApiProxyList] json parse error")
+		return
 	}
-	//	SpiderLoger.I("[Proxy.GetApiProxyList] load with", sp.Tbao, "proxy")
-
+}
+func (loader *Loader) getProxyServer() *list.Element {
+	if el := proxyList.Front(); el != nil {
+		proxyList.MoveToBack(el)
+	}
+	return proxyList.Front()
 }
 func (sp *Proxy) kuai(proxyUrl string) {
 	_, content, err := NewLoader().WithPcAgent().Get(proxyUrl)
+	fmt.Println(string(content))
 	if err != nil {
 		SpiderLoger.E("Load proxy error with", proxyUrl)
 		return
@@ -317,7 +391,7 @@ func (sp *Proxy) kuai(proxyUrl string) {
 	}
 	count = len(sp.Rows)
 	if count == 0 {
-		sp.Rows = make(map[uint32]*ProxyServerInfo)
+		sp.Rows = make(map[uint32]*ProxyInfo)
 	}
 
 	for i := 0; i < l; i++ {
@@ -326,16 +400,11 @@ func (sp *Proxy) kuai(proxyUrl string) {
 		}
 		ip, port := string(trs[i][1]), string(trs[i][2])
 		host := fmt.Sprintf("%s:%s", ip, port)
-		h := hash(host)
-		_, ok := sp.Rows[h]
-		if ok {
-			continue
-		}
 		go func() {
-			if ChkByTbao(host) {
+			if CheckByAli(host) {
 				fmt.Println("%s:%s", ip, port)
-				sp.Rows[h] = &ProxyServerInfo{host: host, status: true}
-				sp.Tbao = append(sp.Tbao, sp.Rows[h])
+				row := &ProxyInfo{host: host, status: true}
+				sp.Tbao = append(sp.Tbao, row)
 			}
 		}()
 		count++
@@ -347,46 +416,4 @@ func (sp *Proxy) kuai(proxyUrl string) {
 	SpiderLoger.I("The proxy server count", count)
 	return
 
-}
-
-func (sp *Proxy) Load(proxyUrl string) {
-
-	_, content, err := NewLoader().WithPcAgent().Send(proxyUrl, "GET", nil)
-	if err != nil {
-		SpiderLoger.E("Load proxy error with", proxyUrl)
-		return
-	}
-	mcontent := make([]byte, len(content))
-	copy(mcontent, content)
-
-	htmlParser := NewHtmlParser()
-
-	hp := htmlParser.LoadData(mcontent).Replace().CleanScript()
-	trs := hp.Partten(`(?U)<td>(\d+\.\d+\.\d+\.\d+)</td><td>(\d+)</td>`).FindAllSubmatch()
-	l := len(trs)
-	if l == 0 {
-		SpiderLoger.E("load proxy data from " + proxyUrl + " error. ")
-		return
-	}
-	if count == 0 {
-		sp.Rows = make(map[uint32]*ProxyServerInfo)
-	}
-	for i := 0; i < l; i++ {
-		ip, port := string(trs[i][1]), string(trs[i][2])
-		pr := &PingResult{}
-		err = Ping(pr, ip, port)
-		if err != nil {
-			// SpiderLoger.W("Ping error", err.Error())
-			continue
-		}
-		if pr.LostRate == 0 && pr.Average < 500 {
-			//			sp.Servers[proxyNum] = &ProxyServerInfo{proxyNum, ip, port}
-			count++
-		}
-	}
-	if count <= 5 {
-		SpiderLoger.E("proxy servers only ", count)
-	}
-	SpiderLoger.I("The proxy server count", count)
-	return
 }

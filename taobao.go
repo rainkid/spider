@@ -83,15 +83,14 @@ func (ti *Taobao) CheckResponse(item *Item) (*Taobao, error) {
 
 func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 
-
-	if ti.json["data"] != nil {
+	if ti.json["data"] == nil {
 		item.err = errors.New("Taobao: get item detail data error")
 		SpiderServer.qerror <- item
 		return ti
 	}
 	data := ti.json["data"].(map[string]interface{})
 
-	if data["itemInfoModel"] != nil {
+	if data["itemInfoModel"] == nil {
 		item.err = errors.New("Taobao: get item itemInfoModel  error")
 		SpiderServer.qerror <- item
 		return ti
@@ -108,7 +107,7 @@ func (ti *Taobao) GetBasicInfo(item *Item) *Taobao {
 		return ti
 	}
 
-	if api_stack["data"].(map[string]interface{})["itemInfoModel"] != nil {
+	if api_stack["data"].(map[string]interface{})["itemInfoModel"] == nil {
 		item.err = errors.New("Taobao: get item price itemInfoModel error")
 		SpiderServer.qerror <- item
 		return ti

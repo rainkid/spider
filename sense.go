@@ -128,7 +128,18 @@ func (i *Sense) GetItemID(detail_url string) {
 }
 
 //根据平台的URL获取相应的历史价格
-func (i *Sense) GetHistoryPrice() error {
+func (i *Sense) GetHistoryPrice(historyData []interface{}) {
+
+	for _,row :=range historyData  {
+		h := History{}
+		row := row.(map[string]interface{})
+		h.Price = fmt.Sprintf("%.2f", row["price"].(float64))
+		h.Time = row["time"].(string)
+		i.History = append(i.History, h)
+	}
+}
+//根据平台的URL获取相应的历史价格
+func (i *Sense) GetHistoryPriceX() error {
 	full_url := fmt.Sprintf("http://zhushou.huihui.cn/productSense?phu=%s&type=canvas&t=1448957873849", url.QueryEscape(i.ItemUrl))
 	_, content, err := NewLoader().WithProxy().Get(full_url)
 	if err != nil {
